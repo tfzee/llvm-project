@@ -80,6 +80,7 @@ public:
     riscv32be,   // RISC-V (32-bit, big endian): riscv32be
     riscv64be,   // RISC-V (64-bit, big endian): riscv64be
     sparc,       // Sparc: sparc
+    urcl,        // URCL: urcl
     sparcv9,     // Sparcv9: Sparcv9
     sparcel,     // Sparc: (endianness = little). NB: 'Sparcle' is a CPU variant
     systemz,     // SystemZ: s390x

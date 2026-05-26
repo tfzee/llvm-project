@@ -22,6 +22,7 @@
             cmake
             ninja
             llvmPackages_20.clang
+            (pkgs.python312.withPackages (python-pkgs: []))
 
             #for testing stuff not real dependencies
             cmakeCurses

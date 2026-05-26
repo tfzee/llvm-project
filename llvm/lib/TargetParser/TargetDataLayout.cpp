@@ -363,6 +363,18 @@ static std::string computeSparcDataLayout(const Triple &T) {
   return Ret;
 }
 
+static std::string computeURCLDataLayout(const Triple &T) {
+  std::string Ret = "E";
+  Ret += "-m:e";
+  Ret += "-p:32:32:32";
+  Ret += "-i32:32:32";
+  // Ret += "-i64:64:64";
+  Ret += "-a:0:32";
+  Ret += "-n32";
+  Ret += "-S32";
+  return Ret;
+}
+
 static std::string computeSystemZDataLayout(const Triple &TT) {
   std::string Ret;
 
@@ -605,6 +617,8 @@ std::string Triple::computeDataLayout(StringRef ABIName) const {
   case Triple::riscv32be:
   case Triple::riscv64be:
     return computeRISCVDataLayout(*this, ABIName);
+  case Triple::urcl:
+    return computeURCLDataLayout(*this);
   case Triple::sparc:
   case Triple::sparcv9:
   case Triple::sparcel:

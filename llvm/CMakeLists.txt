@@ -583,6 +583,7 @@ set(LLVM_ALL_TARGETS
   PowerPC
   RISCV
   Sparc
+  URCL
   SPIRV
   SystemZ
   VE

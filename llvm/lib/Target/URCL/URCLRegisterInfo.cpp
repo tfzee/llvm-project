@@ -64,8 +64,8 @@ bool URCLRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   MachineInstr &MI = *II;
   MachineFunction &MF = *MI.getParent()->getParent();
-  // MachineFrameInfo &MFI = MF.getFrameInfo();
-  // MachineRegisterInfo &MRI = MF.getRegInfo();
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  MachineRegisterInfo &MRI = MF.getRegInfo();
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   DebugLoc DL = MI.getDebugLoc();
   MachineBasicBlock &MBB = *MI.getParent();
@@ -75,6 +75,22 @@ bool URCLRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   Register FrameReg;
   int Offset = TFI->getFrameIndexReference(MF, FrameIndex, FrameReg).getFixed();
+
+  // we assume its only stack slots for this so we dont need fancy byte
+  // adressing
+  if (MI.getOpcode() == URCL::LSTR_ri || MI.getOpcode() == URCL::LLOD_ri) {
+    int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
+    auto ObjOff = MFI.getObjectOffset(FrameIndex);
+    auto OldImm = MI.getOperand(FIOperandNum + 1).getImm();
+    auto StackSize = MFI.getStackSize();
+    assert(OldImm == 0);
+    assert(ObjOff % 4 == 0);
+    assert(StackSize % 4 == 0);
+    int Offset = (ObjOff / 4) + (StackSize / 4) + OldImm;
+    MI.getOperand(FIOperandNum).ChangeToRegister(FrameReg, false);
+    MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
+    return false;
+  }
 
   Register FrameByteReg = URCL::R16;
   BuildMI(MBB, II, DL, TII.get(URCL::BSLri), FrameByteReg)

@@ -60,23 +60,15 @@ void URCLInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
     DL = I->getDebugLoc();
 
   if (RC == &URCL::IntRegsRegClass) {
-
-    //we assume its always aligned to 4 atleast so we can just shift
-    BuildMI(MBB, I, DL, get(URCL::BSLri))
-        .addReg()
+    BuildMI(MBB, I, DL, get(URCL::LSTR_ri))
         .addFrameIndex(FI)
-        .addImm(2)        
-        .setMIFlags(Flags);
-
-    BuildMI(MBB, I, DL, get(URCL::STR_r))
-        .addReg(r.re)
+        .addImm(0)
         .addReg(SrcReg, getKillRegState(isKill))
         .setMIFlags(Flags);
   } else {
     llvm_unreachable("Can't store this register to stack slot");
   }
 }
-
 
 void URCLInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                          MachineBasicBlock::iterator I,
@@ -90,12 +82,11 @@ void URCLInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
 
   if (RC == &URCL::IntRegsRegClass) {
     BuildMI(MBB, I, DL, get(URCL::LLOD_ri))
-        .addReg(DestReg, RegState::Define) // 1. target (destination)
-        .addFrameIndex(FI)                 // 2. mem slot
-        .addImm(0)                         // 3. offset
-        .setMIFlags(Flags);                // Pass along spill flags
+        .addReg(DestReg, RegState::Define)
+        .addFrameIndex(FI)
+        .addImm(0)
+        .setMIFlags(Flags);
   } else {
     llvm_unreachable("Can't load this register from stack slot");
   }
 }
-

@@ -195,11 +195,11 @@ let mayStore = 1,
 
 multiclass BR_CC<string OpcStr, CondCode CC,
                 RegisterClass RC, Operand immOp, InstrItinClass itin = NoItinerary> { 
-  def _r  : Base_Instr3<(outs), (ins brtarget:$rd, RC:$rs1, RC:$rs2),
+  def _rr  : Base_Instr3<(outs), (ins brtarget:$rd, RC:$rs1, RC:$rs2),
                  !strconcat(OpcStr, " $rd, $rs1, $rs2"),
                  [(brcc CC, RC:$rs1, RC:$rs2, bb:$rd)],
                  itin>;
-  def _i  : Base_Instr3<(outs), (ins brtarget:$rd, RC:$rs1, immOp:$simm32),
+  def _ri  : Base_Instr3<(outs), (ins brtarget:$rd, RC:$rs1, immOp:$simm32),
                  !strconcat(OpcStr, " $rd, $rs1, $simm32"),
                  [(brcc CC, RC:$rs1, simm32:$simm32, bb:$rd)],
                  itin>;
@@ -225,15 +225,15 @@ def MOVrr  : Base_Instr2<(outs IntRegs:$rd), (ins IntRegs:$rs1),
   NoItinerary>;
 }
 
-let hasSideEffects = 0, isReMaterializable = 1, isAsCheapAsAMove = 1, isMoveImm = 1 in {
+let hasSideEffects = 0, isReMaterializable = 0, isAsCheapAsAMove = 1, isMoveImm = 1 in {
 def MOVri  : Base_Instr2<(outs IntRegs:$rd), (ins simm32Op:$simm32),
   "mov $rd, $simm32",
-  [(set i32:$rd, simm32:$simm32)],
+  [],
+  // [(set i32:$rd, simm32:$simm32)],
   NoItinerary>;
 }
-// def : Pat<(i32 0), (COPY (i32 R0))>;
-def : Pat<(i32 simm32:$val),
-          (MOVri imm:$val)>;
+
+
 
 // Arith
 let hasSideEffects = 0 in {
@@ -263,10 +263,13 @@ let hasSideEffects = 0 in {
                  NoItinerary>;
 
 }
-  
-  
+    
 def : Pat<(sub IntRegs:$rs1, (i32 1)), (DEC IntRegs:$rs1)>;
 def : Pat<(sub IntRegs:$rs1, (i32 -1)), (INC IntRegs:$rs1)>;
+
+// def : Pat<(i32 0), (COPY (i32 R0))>;
+def : Pat<(i32 simm32:$val),
+          (ADDri R0, $val)>;
 
 
 defm LODB  : Load<"LOD",       extloadi8,  IntRegs, i32, simm32Op>;

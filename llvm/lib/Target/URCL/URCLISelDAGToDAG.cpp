@@ -80,15 +80,10 @@ bool URCLDAGToDAGISel::selectLoadStackSlotSimplifier(SDNode *N) {
       return false;
     }
     SDLoc DL(N);
-    SDValue Ops[] = {Address, CurDAG->getTargetConstant(0, DL, MVT::i32), ST->getChain()};
-    llvm::errs() << "N=================================\n";
-    CurDAG->dump(true);
-    llvm::errs() << "Rsults: \n";
-    auto *NewNode = CurDAG->SelectNodeTo(N, URCL::LLOD_ri, ST->getValueType(0), MVT::Other, Ops);
-    llvm::errs() << "OrDoesIt?: \n";
-    CurDAG->dump(true);
-    NewNode->dump(CurDAG);
-    llvm::errs() << "\n";
+    SDValue Ops[] = {Address, CurDAG->getTargetConstant(0, DL, MVT::i32),
+                     ST->getChain()};
+    CurDAG->SelectNodeTo(N, URCL::LLOD_ri, ST->getValueType(0), MVT::Other,
+                         Ops);
     return true;
   }
   return false;

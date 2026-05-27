@@ -706,35 +706,36 @@ SDValue URCLTargetLowering::LowerFormalArguments(
     SDValue Arg;
     if (VA.isRegLoc()) {
       if (VA.needsCustom()) {
-        assert(VA.getLocVT() == MVT::f64 || VA.getLocVT() == MVT::v2i32);
+        assert(false);
+        // assert(VA.getLocVT() == MVT::f64 || VA.getLocVT() == MVT::v2i32);
 
-        Register VRegHi = RegInfo.createVirtualRegister(&URCL::IntRegsRegClass);
-        MF.getRegInfo().addLiveIn(VA.getLocReg(), VRegHi);
-        SDValue HiVal = DAG.getCopyFromReg(Chain, dl, VRegHi, MVT::i32);
+        // Register VRegHi = RegInfo.createVirtualRegister(&URCL::IntRegsRegClass);
+        // MF.getRegInfo().addLiveIn(VA.getLocReg(), VRegHi);
+        // SDValue HiVal = DAG.getCopyFromReg(Chain, dl, VRegHi, MVT::i32);
 
-        assert(i + 1 < e);
-        CCValAssign &NextVA = ArgLocs[++i];
+        // assert(i + 1 < e);
+        // CCValAssign &NextVA = ArgLocs[++i];
 
-        SDValue LoVal;
-        if (NextVA.isMemLoc()) {
-          int FrameIdx = MF.getFrameInfo().CreateFixedObject(
-              4, StackOffset + NextVA.getLocMemOffset(), true);
-          SDValue FIPtr = DAG.getFrameIndex(FrameIdx, MVT::i32);
-          LoVal = DAG.getLoad(MVT::i32, dl, Chain, FIPtr, MachinePointerInfo());
-        } else {
-          Register loReg =
-              MF.addLiveIn(NextVA.getLocReg(), &URCL::IntRegsRegClass);
-          LoVal = DAG.getCopyFromReg(Chain, dl, loReg, MVT::i32);
-        }
+        // SDValue LoVal;
+        // if (NextVA.isMemLoc()) {
+        //   int FrameIdx = MF.getFrameInfo().CreateFixedObject(
+        //       4, StackOffset + NextVA.getLocMemOffset(), true);
+        //   SDValue FIPtr = DAG.getFrameIndex(FrameIdx, MVT::i32);
+        //   LoVal = DAG.getLoad(MVT::i32, dl, Chain, FIPtr, MachinePointerInfo());
+        // } else {
+        //   Register loReg =
+        //       MF.addLiveIn(NextVA.getLocReg(), &URCL::IntRegsRegClass);
+        //   LoVal = DAG.getCopyFromReg(Chain, dl, loReg, MVT::i32);
+        // }
 
-        if (IsLittleEndian)
-          std::swap(LoVal, HiVal);
+        // if (IsLittleEndian)
+        //   std::swap(LoVal, HiVal);
 
-        SDValue WholeValue =
-            DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i64, LoVal, HiVal);
-        WholeValue = DAG.getNode(ISD::BITCAST, dl, VA.getLocVT(), WholeValue);
-        InVals.push_back(WholeValue);
-        continue;
+        // SDValue WholeValue =
+        //     DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i64, LoVal, HiVal);
+        // WholeValue = DAG.getNode(ISD::BITCAST, dl, VA.getLocVT(), WholeValue);
+        // InVals.push_back(WholeValue);
+        // continue;
       }
       Register VReg = RegInfo.createVirtualRegister(&URCL::IntRegsRegClass);
       MF.getRegInfo().addLiveIn(VA.getLocReg(), VReg);
@@ -756,35 +757,36 @@ SDValue URCLTargetLowering::LowerFormalArguments(
       unsigned Offset = VA.getLocMemOffset() + StackOffset;
 
       if (VA.needsCustom()) {
-        assert(VA.getValVT() == MVT::f64 || VA.getValVT() == MVT::v2i32);
-        // If it is double-word aligned, just load.
-        if (Offset % 8 == 0) {
-          int FI = MF.getFrameInfo().CreateFixedObject(8, Offset, true);
-          SDValue FIPtr = DAG.getFrameIndex(FI, PtrVT);
-          SDValue Load = DAG.getLoad(VA.getValVT(), dl, Chain, FIPtr,
-                                     MachinePointerInfo());
-          InVals.push_back(Load);
-          continue;
-        }
+        assert(false);
+        // assert(VA.getValVT() == MVT::f64 || VA.getValVT() == MVT::v2i32);
+        // // If it is double-word aligned, just load.
+        // if (Offset % 8 == 0) {
+        //   int FI = MF.getFrameInfo().CreateFixedObject(8, Offset, true);
+        //   SDValue FIPtr = DAG.getFrameIndex(FI, PtrVT);
+        //   SDValue Load = DAG.getLoad(VA.getValVT(), dl, Chain, FIPtr,
+        //                              MachinePointerInfo());
+        //   InVals.push_back(Load);
+        //   continue;
+        // }
 
-        int FI = MF.getFrameInfo().CreateFixedObject(4, Offset, true);
-        SDValue FIPtr = DAG.getFrameIndex(FI, PtrVT);
-        SDValue HiVal =
-            DAG.getLoad(MVT::i32, dl, Chain, FIPtr, MachinePointerInfo());
-        int FI2 = MF.getFrameInfo().CreateFixedObject(4, Offset + 4, true);
-        SDValue FIPtr2 = DAG.getFrameIndex(FI2, PtrVT);
+        // int FI = MF.getFrameInfo().CreateFixedObject(4, Offset, true);
+        // SDValue FIPtr = DAG.getFrameIndex(FI, PtrVT);
+        // SDValue HiVal =
+        //     DAG.getLoad(MVT::i32, dl, Chain, FIPtr, MachinePointerInfo());
+        // int FI2 = MF.getFrameInfo().CreateFixedObject(4, Offset + 4, true);
+        // SDValue FIPtr2 = DAG.getFrameIndex(FI2, PtrVT);
 
-        SDValue LoVal =
-            DAG.getLoad(MVT::i32, dl, Chain, FIPtr2, MachinePointerInfo());
+        // SDValue LoVal =
+        //     DAG.getLoad(MVT::i32, dl, Chain, FIPtr2, MachinePointerInfo());
 
-        if (IsLittleEndian)
-          std::swap(LoVal, HiVal);
+        // if (IsLittleEndian)
+        //   std::swap(LoVal, HiVal);
 
-        SDValue WholeValue =
-            DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i64, LoVal, HiVal);
-        WholeValue = DAG.getNode(ISD::BITCAST, dl, VA.getValVT(), WholeValue);
-        InVals.push_back(WholeValue);
-        continue;
+        // SDValue WholeValue =
+        //     DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i64, LoVal, HiVal);
+        // WholeValue = DAG.getNode(ISD::BITCAST, dl, VA.getValVT(), WholeValue);
+        // InVals.push_back(WholeValue);
+        // continue;
       }
 
       int FI = MF.getFrameInfo().CreateFixedObject(LocVT.getSizeInBits() / 8,

@@ -884,6 +884,10 @@ SDValue URCLTargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
     return SDValue();
   }
 
+  if (isa<FrameIndexSDNode>(Ptr)) {
+    return SDValue();
+  }
+
   SDValue WordAddr = DAG.getNode(ISD::SRL, DL, MVT::i32, Ptr,
                                  DAG.getConstant(2, DL, MVT::i32));
 
@@ -920,6 +924,10 @@ SDValue URCLTargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
   EVT MemVT = SN->getMemoryVT();
 
   if (Ptr.getOpcode() == URCLISD::WORD_ADDR) {
+    return SDValue();
+  }
+
+  if (isa<FrameIndexSDNode>(Ptr)) {
     return SDValue();
   }
 

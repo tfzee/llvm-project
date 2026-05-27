@@ -12,9 +12,11 @@
 
 #include "URCLSelectionDAGInfo.h"
 #include "URCLTargetMachine.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
+#include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "urcl-isel"
@@ -31,8 +33,6 @@ using namespace llvm;
 
 namespace {
 class URCLDAGToDAGISel : public SelectionDAGISel {
-  /// Subtarget - Keep a pointer to the URCL Subtarget around so that we can
-  /// make the right decision when generating code for different targets.
   const URCLSubtarget *Subtarget = nullptr;
 
 public:
@@ -48,6 +48,17 @@ public:
 #include "URCLGenDAGISel.inc"
 
   void Select(SDNode *N) override;
+  bool selectLoadStackSlotSimplifier(SDNode *N);
+  bool selectStoreStackSlotSimplifier(SDNode *N);
+
+  bool SelectAddrFI(SDValue Addr, SDValue &Base) {
+    if (auto *FIN = dyn_cast<FrameIndexSDNode>(Addr)) {
+      Base = CurDAG->getTargetFrameIndex(
+          FIN->getIndex(), TLI->getPointerTy(CurDAG->getDataLayout()));
+      return true;
+    }
+    return false;
+  }
 };
 
 class URCLDAGToDAGISelLegacy : public SelectionDAGISelLegacy {
@@ -62,6 +73,42 @@ char URCLDAGToDAGISelLegacy::ID = 0;
 
 INITIALIZE_PASS(URCLDAGToDAGISelLegacy, DEBUG_TYPE, PASS_NAME, false, false)
 
+bool URCLDAGToDAGISel::selectLoadStackSlotSimplifier(SDNode *N) {
+  if (auto *ST = dyn_cast<LoadSDNode>(N)) {
+    SDValue Address = ST->getBasePtr();
+    if (!isa<FrameIndexSDNode>(Address)) {
+      return false;
+    }
+    SDLoc DL(N);
+    SDValue Ops[] = {Address, CurDAG->getTargetConstant(0, DL, MVT::i32), ST->getChain()};
+    llvm::errs() << "N=================================\n";
+    CurDAG->dump(true);
+    llvm::errs() << "Rsults: \n";
+    auto *NewNode = CurDAG->SelectNodeTo(N, URCL::LLOD_ri, ST->getValueType(0), MVT::Other, Ops);
+    llvm::errs() << "OrDoesIt?: \n";
+    CurDAG->dump(true);
+    NewNode->dump(CurDAG);
+    llvm::errs() << "\n";
+    return true;
+  }
+  return false;
+}
+
+bool URCLDAGToDAGISel::selectStoreStackSlotSimplifier(SDNode *N) {
+  if (auto *ST = dyn_cast<StoreSDNode>(N)) {
+    SDValue Address = ST->getBasePtr();
+    if (!isa<FrameIndexSDNode>(Address)) {
+      return false;
+    }
+    SDLoc DL(N);
+    SDValue Ops[] = {Address, CurDAG->getTargetConstant(0, DL, MVT::i32),
+                     ST->getValue(), ST->getChain()};
+    CurDAG->SelectNodeTo(N, URCL::LSTR_ri, MVT::Other, Ops);
+    return true;
+  }
+  return false;
+}
+
 void URCLDAGToDAGISel::Select(SDNode *N) {
   SDLoc DL(N);
   if (N->isMachineOpcode()) {
@@ -69,20 +116,13 @@ void URCLDAGToDAGISel::Select(SDNode *N) {
     return;
   }
 
-  // unsigned Opcode = N->getOpcode();
-  // if (Opcode == ISD::GlobalAddress) {
-  //   auto *GA = cast<GlobalAddressSDNode>(N);
-  //   EVT VT = N->getValueType(0);
-
-  //   SDValue TGA = CurDAG->getTargetGlobalAddress(GA->getGlobal(), DL, VT,
-  //                                                GA->getOffset());
-  //   SDNode *ResNode =
-  //       CurDAG->getMachineNode(URCLISD::GLOBAL_REF, DL, VT, TGA);
-
-  //   ReplaceNode(N, ResNode);
-  //   return;
-  // }
-
+  // loads/stores from SP *will* be aligned
+  if (selectLoadStackSlotSimplifier(N)) {
+    return;
+  }
+  if (selectStoreStackSlotSimplifier(N)) {
+    return;
+  }
   SelectCode(N);
 }
 

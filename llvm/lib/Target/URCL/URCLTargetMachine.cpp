@@ -20,7 +20,6 @@ extern "C" LLVM_ABI LLVM_EXTERNAL_VISIBILITY void LLVMInitializeURCLTarget() {
   PassRegistry &PR = *PassRegistry::getPassRegistry();
   initializeURCLAsmPrinterPass(PR);
   initializeURCLDAGToDAGISelLegacyPass(PR);
-  // initializeErrataWorkaroundPass(PR);
 }
 
 static Reloc::Model getEffectiveRelocModel(std::optional<Reloc::Model> RM) {
@@ -76,16 +75,7 @@ bool URCLPassConfig::addInstSelector() {
   return false;
 }
 
-void URCLPassConfig::addPreEmitPass() {
-  // if (BranchRelaxation)
-  //   addPass(&BranchRelaxationPassID);
-
-  // addPass(createURCLDelaySlotFillerPass());
-  // addPass(new InsertNOPLoad());
-  // addPass(new DetectRoundChange());
-  // addPass(new FixAllFDIVSQRT());
-  // addPass(new ErrataWorkaround());
-}
+void URCLPassConfig::addPreEmitPass() { addPass(createURCLCleanupPass()); }
 
 URCLTargetMachine::URCLTargetMachine(const Target &T, const Triple &TT,
                                      StringRef CPU, StringRef FS,
@@ -127,10 +117,3 @@ URCLTargetMachine::getSubtargetImpl(const Function &F) const {
   }
   return I.get();
 }
-
-// MachineFunctionInfo *URCLTargetMachine::createMachineFunctionInfo(
-//     BumpPtrAllocator &Allocator, const Function &F,
-//     const TargetSubtargetInfo *STI) const {
-//   return URCLMachineFunctionInfo::create<URCLMachineFunctionInfo>(Allocator,
-//                                                                     F, STI);
-// }

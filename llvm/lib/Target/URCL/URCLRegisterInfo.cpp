@@ -20,6 +20,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 
 using namespace llvm;
 
@@ -65,8 +66,9 @@ bool URCLRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MachineInstr &MI = *II;
   MachineFunction &MF = *MI.getParent()->getParent();
   MachineFrameInfo &MFI = MF.getFrameInfo();
-  MachineRegisterInfo &MRI = MF.getRegInfo();
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+  const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
+
   DebugLoc DL = MI.getDebugLoc();
   MachineBasicBlock &MBB = *MI.getParent();
 
@@ -92,48 +94,41 @@ bool URCLRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     return false;
   }
 
-  Register FrameByteReg = URCL::R16;
-  BuildMI(MBB, II, DL, TII.get(URCL::BSLri), FrameByteReg)
-      .addReg(FrameReg)
-      .addImm(2);
-
-  Register FinalReg;
+  Register FinalReg = URCL::R16;
   if (MI.getOperand(0).isReg() && MI.getOperand(0).isDef()) {
-    FinalReg = MI.getOperand(0).getReg();
-  } else {
-    FinalReg = FrameByteReg;
+    Register DestReg = MI.getOperand(0).getReg();
+    if (!MI.mayStore() && !MI.readsRegister(DestReg, &TRI)) {
+      FinalReg = DestReg;
+    }
   }
-  BuildMI(MBB, II, DL, TII.get(URCL::ADDri), FinalReg)
-      .addReg(FrameByteReg)
-      .addImm(Offset);
+  bool IsFrameRegKilled = MI.killsRegister(FrameReg, &TRI);
 
-  // if (MI.getOpcode() == URCL::LSTR_ri || MI.getOpcode() == URCL::LLOD_ri ||
-  //     MI.getOpcode() == URCL::ADDri) {
-  //   int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
-  //   int Offset = MFI.getObjectOffset(FrameIndex) +
-  //                MI.getOperand(FIOperandNum + 1).getImm();
-  //   Offset += MFI.getStackSize();
-  //   MI.getOperand(FIOperandNum).ChangeToRegister(FrameByteReg, false);
-  //   MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
-  //   return false;
-  // }
-  // if (MI.getOpcode() == URCL::STR_r) {
-  //   MI.setDesc(TII.get(URCL::LSTR_ri));
-  //   MachineOperand DataReg = MI.getOperand(0);
-  //   MI.removeOperand(0);
-  //   MI.getOperand(0).ChangeToRegister(FrameByteReg, false);
-  //   MI.addOperand(MachineOperand::CreateImm(Offset));
-  //   MI.addOperand(DataReg);
-  //   return false;
-  // }
-  // if (MI.getOpcode() == URCL::LOD_r) {
-  //   MI.setDesc(TII.get(URCL::LLOD_ri));
-  //   MI.getOperand(1).ChangeToRegister(FrameByteReg, false);
-  //   MI.addOperand(MachineOperand::CreateImm(Offset));
-  //   return false;
-  // }
+  if (Offset % 4 == 0 && Offset != 0) {
+    // if we can do the offset on word level then delay the shift till after
+    BuildMI(MBB, II, DL, TII.get(URCL::ADDri), FinalReg)
+        .addReg(FrameReg, getKillRegState(IsFrameRegKilled))
+        .addImm(Offset / 4);
 
-  MI.getOperand(FIOperandNum).ChangeToRegister(FinalReg, false, false, true);
+    BuildMI(MBB, II, DL, TII.get(URCL::BSLri), FinalReg)
+        .addReg(FinalReg, RegState::Kill)
+        .addImm(2);
+
+  } else {
+    BuildMI(MBB, II, DL, TII.get(URCL::BSLri), FinalReg)
+        .addReg(FrameReg, getKillRegState(IsFrameRegKilled))
+        .addImm(2);
+
+    if (Offset != 0) {
+      BuildMI(MBB, II, DL, TII.get(URCL::ADDri), FinalReg)
+          .addReg(FinalReg, RegState::Kill)
+          .addImm(Offset);
+    }
+  }
+
+  bool IsFinalRegKilled = (FinalReg == URCL::R16);
+  MI.getOperand(FIOperandNum)
+      .ChangeToRegister(FinalReg, /*isDef=*/false, /*isImp=*/false,
+                        IsFinalRegKilled);
 
   return false;
 }

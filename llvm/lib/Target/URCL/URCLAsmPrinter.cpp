@@ -11,20 +11,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/URCLInstPrinter.h"
-#include "MCTargetDesc/URCLMCAsmInfo.h"
 #include "MCTargetDesc/URCLMCTargetDesc.h"
 #include "MCTargetDesc/URCLTargetStreamer.h"
-#include "URCL.h"
-#include "URCLInstrInfo.h"
-// #include "URCLTargetMachine.h"
 #include "TargetInfo/URCLTargetInfo.h"
-#include "llvm/BinaryFormat/ELF.h"
+#include "URCL.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/AsmPrinterHandler.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCAsmInfo.h"
@@ -86,7 +80,7 @@ static void writeBytes(std::vector<uint8_t> &Buffer, unsigned Offset,
   std::memcpy(&Buffer[Offset], Data, Size);
 }
 
-static void FlattenConstant(const Constant *CV, const DataLayout &DL,
+static void flattenConstant(const Constant *CV, const DataLayout &DL,
                             unsigned Offset, std::vector<uint8_t> &Buffer,
                             std::map<unsigned, const Constant *> &Relocs) {
 
@@ -117,7 +111,7 @@ static void FlattenConstant(const Constant *CV, const DataLayout &DL,
   if (auto *CA = dyn_cast<ConstantArray>(CV)) {
     unsigned ElemSize = DL.getTypeAllocSize(CA->getType()->getElementType());
     for (unsigned I = 0; I < CA->getNumOperands(); ++I) {
-      FlattenConstant(CA->getOperand(I), DL, Offset + (I * ElemSize), Buffer,
+      flattenConstant(CA->getOperand(I), DL, Offset + (I * ElemSize), Buffer,
                       Relocs);
     }
     return;
@@ -126,7 +120,7 @@ static void FlattenConstant(const Constant *CV, const DataLayout &DL,
   if (auto *CS = dyn_cast<ConstantStruct>(CV)) {
     const StructLayout *SL = DL.getStructLayout(CS->getType());
     for (unsigned I = 0; I < CS->getNumOperands(); ++I) {
-      FlattenConstant(CS->getOperand(I), DL, Offset + SL->getElementOffset(I),
+      flattenConstant(CS->getOperand(I), DL, Offset + SL->getElementOffset(I),
                       Buffer, Relocs);
     }
     return;
@@ -154,8 +148,7 @@ void URCLAsmPrinter::emitGlobalVariable(const GlobalVariable *GV) {
   std::vector<uint8_t> Buffer;
   std::map<unsigned, const Constant *> Relocs;
 
-  // llvm::errs() << "Emitting global: " << *GV << "\n";
-  // FlattenConstant(GV->getInitializer(), DL, 0, Buffer, Relocs);
+  flattenConstant(GV->getInitializer(), DL, 0, Buffer, Relocs);
 
   // padd end
   if (Buffer.size() % 4 != 0) {
@@ -178,10 +171,6 @@ void URCLAsmPrinter::emitGlobalVariable(const GlobalVariable *GV) {
 
         EmittedReloc = true;
         break;
-
-        // emitGlobalConstant(DL, Val);
-        // EmittedReloc = true;
-        // break;
       }
     }
 
@@ -205,7 +194,7 @@ bool URCLAsmPrinter::doInitialization(Module &M) {
     if (!GV.hasInitializer())
       continue;
 
-    // 1. Calculate alignment/padding (your architecture is 4-byte aligned)
+    // Calculate alignment/padding (your architecture is 4-byte aligned)
     // If you have specific alignment rules, calculate them here
     uint64_t Size = DL.getTypeAllocSize(GV.getInitializer()->getType());
 
@@ -214,10 +203,10 @@ bool URCLAsmPrinter::doInitialization(Module &M) {
       CurrentOffset = (CurrentOffset + 3) & ~3;
     }
 
-    // 2. Store the offset (in BYTES)
+    // Store the offset (in BYTES)
     GlobalOffsets[&GV] = CurrentOffset;
 
-    // 3. Increment offset
+    // Increment offset
     CurrentOffset += Size;
   }
 
@@ -248,10 +237,6 @@ bool URCLAsmPrinter::doFinalization(llvm::Module &M) {
 
 void URCLAsmPrinter::emitFunctionHeader() {
   const Function &F = MF->getFunction();
-
-  // OutStreamer->getCommentOS()
-  //     << "-- Begin function "
-  //     << GlobalValue::dropLLVMManglingEscape(F.getName()) << '\n';
 
   auto *Section = getObjFileLowering().SectionForGlobal(&F, TM);
   MF->setSection(Section);
@@ -316,10 +301,10 @@ MCOperand URCLAsmPrinter::lowerOperand(const MachineOperand &MO) const {
       break;
     }
 
-    const MCExpr *expr = MCSymbolRefExpr::create(Symbol, OutContext);
+    const MCExpr *Expr = MCSymbolRefExpr::create(Symbol, OutContext);
     if (RelType)
-      expr = MCSpecifierExpr::create(expr, RelType, OutContext);
-    return MCOperand::createExpr(expr);
+      Expr = MCSpecifierExpr::create(Expr, RelType, OutContext);
+    return MCOperand::createExpr(Expr);
   }
 
   case MachineOperand::MO_RegisterMask:
@@ -357,15 +342,6 @@ void URCLAsmPrinter::emitInstruction(const MachineInstr *MI) {
   case TargetOpcode::DBG_VALUE:
     // FIXME: Debug Value.
     return;
-    // case URCL::CASArr:
-    // case URCL::SWAPrr:
-    // case URCL::SWAPri:
-    //   if (MF->getSubtarget<URCLSubtarget>().fixTN0011())
-    //     OutStreamer->emitCodeAlignment(Align(16), &getSubtargetInfo());
-    //   break;
-    // case URCL::GETPCX:
-    //   LowerGETPCXAndEmitMCInsts(MI, getSubtargetInfo());
-    //   return;
   }
   MachineBasicBlock::const_instr_iterator I = MI->getIterator();
   MachineBasicBlock::const_instr_iterator E = MI->getParent()->instr_end();
@@ -373,7 +349,7 @@ void URCLAsmPrinter::emitInstruction(const MachineInstr *MI) {
     MCInst TmpInst;
     lowerToMCInst(&*I, TmpInst);
     EmitToStreamer(*OutStreamer, TmpInst);
-  } while ((++I != E) && I->isInsideBundle()); // Delay slot check.
+  } while ((++I != E) && I->isInsideBundle());
 }
 
 char URCLAsmPrinter::ID = 0;
@@ -381,7 +357,6 @@ char URCLAsmPrinter::ID = 0;
 INITIALIZE_PASS(URCLAsmPrinter, "urcl-asm-printer", "URCL Assembly Printer",
                 false, false)
 
-// Force static initialization.
 extern "C" LLVM_ABI LLVM_EXTERNAL_VISIBILITY void
 LLVMInitializeURCLAsmPrinter() {
   RegisterAsmPrinter<URCLAsmPrinter> X(getTheURCLTarget());

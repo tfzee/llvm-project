@@ -45,6 +45,8 @@ public:
                             int FI, const TargetRegisterClass *RC,
                             Register VReg, unsigned SubReg,
                             MachineInstr::MIFlag Flags) const override;
+  std::optional<DestSourcePair>
+  isCopyInstrImpl(const MachineInstr &MI) const override;
   const URCLRegisterInfo &getRegisterInfo() const { return RI; }
 };
 } // namespace llvm

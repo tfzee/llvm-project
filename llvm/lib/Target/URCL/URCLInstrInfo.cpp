@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "URCLInstrInfo.h"
+#include "MCTargetDesc/URCLMCTargetDesc.h"
 #include "URCL.h"
 #include "URCLMachineFunctionInfo.h"
 #include "URCLSubtarget.h"
@@ -19,6 +20,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
@@ -38,15 +40,29 @@ void URCLInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                 const DebugLoc &DL, Register DestReg,
                                 Register SrcReg, bool KillSrc,
                                 bool RenamableDest, bool RenamableSrc) const {
-  unsigned numSubRegs = 0;
-  unsigned movOpc = 0;
-  const unsigned *subRegIdx = nullptr;
-  bool ExtraG0 = false;
-
   assert(URCL::IntRegsRegClass.contains(DestReg, SrcReg));
   BuildMI(MBB, I, DL, get(URCL::MOVrr), DestReg)
       .addReg(SrcReg, getKillRegState(KillSrc));
   return;
+}
+
+std::optional<DestSourcePair>
+URCLInstrInfo::isCopyInstrImpl(const MachineInstr &MI) const {
+
+  // bool IsAdd0 = MI.getOpcode() == URCL::ADDri && MI.getOperand(2).isImm() &&
+  //               MI.getOperand(2).getImm() == 0;
+  // bool IsAdd0Reg = MI.getOpcode() == URCL::ADDrr && MI.getOperand(2).isReg()
+  // &&
+  //                  MI.getOperand(2).getReg() == URCL::R0;
+  // if (IsAdd0 || IsAdd0Reg) {
+  //     Register Dst = MI.getOperand(0).getReg();
+  // Register Src = MI.getOperand(1).getReg();
+  // if (Dst != Src) {
+  //   return std::optional{DestSourcePair{MI.getOperand(0), MI.getOperand(1)}};
+  // }
+  // }
+
+  return TargetInstrInfo::isCopyInstrImpl(MI);
 }
 
 void URCLInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,

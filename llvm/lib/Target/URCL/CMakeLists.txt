@@ -17,8 +17,7 @@ tablegen(LLVM URCLGenSubtargetInfo.inc -gen-subtarget)
 add_public_tablegen_target(URCLCommonTableGen)
 
 add_llvm_target(URCLCodeGen
-  # DelaySlotFiller.cpp
-  # LeonPasses.cpp
+  URCLCleanupPass.cpp
   URCLAsmPrinter.cpp
   URCLInstrInfo.cpp
   URCLISelDAGToDAG.cpp

@@ -75,6 +75,9 @@ def ADJCALLSTACKUP : Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
                             [(callseq_end timm:$amt1, timm:$amt2)]>;
 }
 
+def to_tframeindex : SDNodeXForm<frameindex, [{
+  return CurDAG->getTargetFrameIndex(N->getIndex(), N->getValueType(0));
+}]>;
 
 def calltarget : Operand<i32> {
   // let EncoderMethod = "getCallTargetOpValue";
@@ -123,6 +126,9 @@ def addr_ri : PatFrag<(ops node:$base, node:$imm),
                      (add node:$base, node:$imm)>;
 multiclass ListLoad<string OpcStr, SDPatternOperator OpNode,
 RegisterClass RC, ValueType Ty, Operand immOp, InstrItinClass itin = NoItinerary> { 
+let mayLoad = 1,
+    hasSideEffects = 0,
+    isReMaterializable = 1 in {
   def _rr : Base_Instr2<(outs RC:$rd), (ins RC:$rs1, RC:$rs2),
                  !strconcat(OpcStr, " $rd, $rs1, $rs2"),
                  [(set Ty:$rd, (OpNode (URCLword_addr  (addr_rr RC:$rs1, RC:$rs2))))],
@@ -132,9 +138,12 @@ RegisterClass RC, ValueType Ty, Operand immOp, InstrItinClass itin = NoItinerary
                  [(set Ty:$rd, (OpNode (URCLword_addr (addr_ri RC:$rs1, simm32:$simm32))))],
                  itin>;
 }
+}
 
 multiclass ListStore<string OpcStr, SDPatternOperator OpNode,
-                    RegisterClass RC, ValueType Ty, Operand immOp, InstrItinClass itin = NoItinerary> { 
+                    RegisterClass RC, ValueType Ty, Operand immOp, InstrItinClass itin = NoItinerary> {
+let mayStore = 1,      
+    hasSideEffects = 0 in {
   def _rr : Base_Instr2<(outs), (ins RC:$rs1, RC:$rs2, RC:$rd),
                  !strconcat(OpcStr, " $rs1, $rs2, $rd"),
                  [(OpNode Ty:$rd, (URCLword_addr (addr_rr RC:$rs1, RC:$rs2)))],
@@ -144,11 +153,14 @@ multiclass ListStore<string OpcStr, SDPatternOperator OpNode,
                  [(OpNode Ty:$rd, (URCLword_addr (addr_ri RC:$rs1, simm32:$simm32)))],
                  itin>;
 }
+}
 
 
 multiclass Load<string OpcStr, SDPatternOperator OpNode,
                RegisterClass RC, ValueType Ty, Operand immOp, InstrItinClass itin = NoItinerary> {
-  
+let mayLoad = 1,
+    hasSideEffects = 0,
+    isReMaterializable = 1 in {
   def _r  : Base_Instr2<(outs RC:$rd), (ins RC:$rs1),
                  !strconcat(OpcStr, " $rd, $rs1"),
                  [(set Ty:$rd, (OpNode (URCLword_addr RC:$rs1)))],
@@ -164,9 +176,12 @@ multiclass Load<string OpcStr, SDPatternOperator OpNode,
                  [(set Ty:$rd, (OpNode tglobaladdr:$glob))],
                  itin>;
 }
+}
 
 multiclass Store<string OpcStr, SDPatternOperator OpNode,
                 RegisterClass RC, ValueType Ty, Operand immOp, InstrItinClass itin = NoItinerary> { 
+let mayStore = 1,      
+    hasSideEffects = 0 in {
   def _r  : Base_Instr2<(outs), (ins RC:$rd, RC:$rs1),
                  !strconcat(OpcStr, " $rs1, $rd"),
                  [(OpNode Ty:$rd, (URCLword_addr RC:$rs1))],
@@ -175,6 +190,7 @@ multiclass Store<string OpcStr, SDPatternOperator OpNode,
                  !strconcat(OpcStr, " $simm32, $rd"),
                  [(OpNode Ty:$rd, (URCLword_addr simm32:$simm32))],
                  itin>;
+}
 }
 
 multiclass BR_CC<string OpcStr, CondCode CC,
@@ -201,40 +217,54 @@ multiclass SET_CC<string OpcStr, CondCode CC,
                  itin>;
 }
 
-
 // schpeschial
-defm MOV    : Instr2<"mov",   null_frag, IntRegs, i32, simm32Op>;
-def : Pat<(i32 0), (COPY (i32 R0))>;
+let hasSideEffects = 0, isMoveReg = 1 in {
+def MOVrr  : Base_Instr2<(outs IntRegs:$rd), (ins IntRegs:$rs1),
+  "mov $rd, $rs1",
+  [],
+  NoItinerary>;
+}
+
+let hasSideEffects = 0, isReMaterializable = 1, isAsCheapAsAMove = 1, isMoveImm = 1 in {
+def MOVri  : Base_Instr2<(outs IntRegs:$rd), (ins simm32Op:$simm32),
+  "mov $rd, $simm32",
+  [(set i32:$rd, simm32:$simm32)],
+  NoItinerary>;
+}
+// def : Pat<(i32 0), (COPY (i32 R0))>;
 def : Pat<(i32 simm32:$val),
           (MOVri imm:$val)>;
 
 // Arith
-defm AND    : Instr3<"and",   and,       IntRegs, i32, simm32Op>;
-defm OR     : Instr3<"or",    or,        IntRegs, i32, simm32Op>;
-defm XOR    : Instr3<"xor",   xor,       IntRegs, i32, simm32Op>;
-defm ADD    : Instr3<"add",   add,       IntRegs, i32, simm32Op>;
-defm SUB    : Instr3<"sub",   sub,       IntRegs, i32, simm32Op>;
-defm BSS    : Instr3<"bss",   sra,       IntRegs, i32, simm32Op>;
-defm BSR    : Instr3<"bsr",   srl,       IntRegs, i32, simm32Op>;
-defm BSL    : Instr3<"bsl",   shl,       IntRegs, i32, simm32Op>;
-defm MOD    : Instr3<"mod",   urem,      IntRegs, i32, simm32Op>;
-defm DIV    : Instr3<"div",   udiv,      IntRegs, i32, simm32Op>;
-defm SDIV   : Instr3<"sdiv",  sdiv,      IntRegs, i32, simm32Op>;
-defm MLT    : Instr3<"mlt",   mul,       IntRegs, i32, simm32Op>;
-defm UMULT  : Instr3<"umlt",  mulhu,     IntRegs, i32, simm32Op>;
-defm SUMLT  : Instr3<"sumlt", mulhs,     IntRegs, i32, simm32Op>;
-
-defm NOT    : Instr2<"not",   not,       IntRegs, i32, simm32Op>;
-
-
-def INC  : Base_Instr2<(outs IntRegs:$rd), (ins IntRegs:$rs1),
+let hasSideEffects = 0 in {
+  defm AND    : Instr3<"and",   and,       IntRegs, i32, simm32Op>;
+  defm OR     : Instr3<"or",    or,        IntRegs, i32, simm32Op>;
+  defm XOR    : Instr3<"xor",   xor,       IntRegs, i32, simm32Op>;
+  defm ADD    : Instr3<"add",   add,       IntRegs, i32, simm32Op>;
+  defm SUB    : Instr3<"sub",   sub,       IntRegs, i32, simm32Op>;
+  defm BSS    : Instr3<"bss",   sra,       IntRegs, i32, simm32Op>;
+  defm BSR    : Instr3<"bsr",   srl,       IntRegs, i32, simm32Op>;
+  defm BSL    : Instr3<"bsl",   shl,       IntRegs, i32, simm32Op>;
+  defm MOD    : Instr3<"mod",   urem,      IntRegs, i32, simm32Op>;
+  defm DIV    : Instr3<"div",   udiv,      IntRegs, i32, simm32Op>;
+  defm SDIV   : Instr3<"sdiv",  sdiv,      IntRegs, i32, simm32Op>;
+  defm MLT    : Instr3<"mlt",   mul,       IntRegs, i32, simm32Op>;
+  defm UMULT  : Instr3<"umlt",  mulhu,     IntRegs, i32, simm32Op>;
+  defm SUMLT  : Instr3<"sumlt", mulhs,     IntRegs, i32, simm32Op>;
+  
+  defm NOT    : Instr2<"not",   not,       IntRegs, i32, simm32Op>;
+  def INC  : Base_Instr2<(outs IntRegs:$rd), (ins IntRegs:$rs1),
                "inc $rd, $rs1",
                [(set i32:$rd, (add IntRegs:$rs1, (i32 1)))],
-               NoItinerary>;
-def DEC  : Base_Instr2<(outs IntRegs:$rd), (ins IntRegs:$rs1),
+                 NoItinerary>;
+  def DEC  : Base_Instr2<(outs IntRegs:$rd), (ins IntRegs:$rs1),
                "dec $rd, $rs1",
                [(set i32:$rd, (add IntRegs:$rs1, (i32 -1)))],
-               NoItinerary>;
+                 NoItinerary>;
+
+}
+  
+  
 def : Pat<(sub IntRegs:$rs1, (i32 1)), (DEC IntRegs:$rs1)>;
 def : Pat<(sub IntRegs:$rs1, (i32 -1)), (INC IntRegs:$rs1)>;
 
@@ -251,16 +281,18 @@ defm LSTR : ListStore<"LSTR",  store, IntRegs, i32, simm32Op>;
 
 //pointer stuff
 //Frame index shenanigans
-def to_tframeindex : SDNodeXForm<frameindex, [{
-  return CurDAG->getTargetFrameIndex(N->getIndex(), N->getValueType(0));
-}]>;
+// def : Pat<(i32 (frameindex:$ptr)), 
+//           (ADDri (i32 (to_tframeindex $ptr)), (i32 0))>;
 def : Pat<(i32 (frameindex:$ptr)), 
-          (ADDri (i32 (to_tframeindex $ptr)), (i32 0))>;
+          (i32 (to_tframeindex $ptr))>;
+
 
 //for global
+let hasSideEffects = 0, isReMaterializable = 1 in {
 def GET_GLOBAL_ADDR : Base_Instr2<(outs IntRegs:$rd), (ins simm32Op:$simm),
                        "mov $rd, $simm\n\tbsl $rd, $rd, 2",
                        []>;
+}
 
 def : Pat<(load (URCLword_addr (srl (URCLGLobalRef i32:$g), 2))), (LOD_g i32:$g)>;
 def : Pat<(URCLGLobalRef i32:$g), (GET_GLOBAL_ADDR i32:$g)>;

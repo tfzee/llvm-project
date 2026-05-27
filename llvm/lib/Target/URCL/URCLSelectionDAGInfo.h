@@ -20,8 +20,24 @@ namespace llvm {
 class URCLSelectionDAGInfo : public SelectionDAGGenTargetInfo {
 public:
   URCLSelectionDAGInfo();
-
   ~URCLSelectionDAGInfo() override;
+
+  const char *getTargetNodeName(unsigned Opcode) const override {
+#define CASE(NAME)                                                             \
+  case URCLISD::NAME:                                                          \
+    return "URCLISD::" #NAME
+
+    // These nodes don't have corresponding entries in *.td files yet.
+    switch (static_cast<URCLISD::GenNodeType>(Opcode)) {
+      CASE(WORD_ADDR);
+      CASE(CALL);
+      CASE(GLOBAL_REF);
+      CASE(RET);
+      CASE(RET_GLUE);
+    }
+#undef CASE
+    return SelectionDAGGenTargetInfo::getTargetNodeName(Opcode);
+  }
 };
 
 } // namespace llvm

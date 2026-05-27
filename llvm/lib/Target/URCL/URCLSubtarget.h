@@ -13,15 +13,12 @@
 #ifndef LLVM_LIB_TARGET_URCL_URCLSUBTARGET_H
 #define LLVM_LIB_TARGET_URCL_URCLSUBTARGET_H
 
-#include "MCTargetDesc/URCLMCTargetDesc.h"
 #include "URCLFrameLowering.h"
 #include "URCLISelLowering.h"
 #include "URCLInstrInfo.h"
 #include "llvm/CodeGen/SelectionDAGTargetInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
-#include "llvm/IR/DataLayout.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/TargetParser/Triple.h"
 
 #define GET_SUBTARGETINFO_HEADER
 #include "URCLGenSubtargetInfo.inc"

@@ -27,11 +27,11 @@ class PassRegistry;
 class URCLTargetMachine;
 
 FunctionPass *createURCLISelDag(URCLTargetMachine &TM);
+FunctionPass *createURCLCleanupPass();
 void initializeURCLDAGToDAGISelLegacyPass(PassRegistry &);
 void initializeURCLAsmPrinterPass(PassRegistry &);
 
-namespace URCLISD {
-} // namespace URCLISD
+namespace URCLISD {} // namespace URCLISD
 
 } // end namespace llvm
 #endif

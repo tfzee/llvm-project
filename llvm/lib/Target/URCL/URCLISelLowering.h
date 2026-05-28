@@ -43,6 +43,13 @@ public:
   SDValue LowerSELECT(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerGLOBAL_REF(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFrameIndex(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerCopyToReg(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
+  bool CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
+                      bool isVarArg,
+                      const SmallVectorImpl<ISD::OutputArg> &Outs,
+                      LLVMContext &Context, const Type *RetTy) const override;
+  bool useSoftFloat() const override { return true; }
 };
 } // namespace llvm
 #endif

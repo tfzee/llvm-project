@@ -52,9 +52,40 @@ SDValue URCLTargetLowering::LowerOperation(SDValue Op,
     return LowerSELECT(Op, DAG);
   case ISD::GlobalAddress:
     return LowerGLOBAL_REF(Op, DAG);
+  case ISD::CopyToReg:
+    return LowerCopyToReg(Op, DAG);
+  case ISD::INTRINSIC_WO_CHAIN:
+    return LowerINTRINSIC_WO_CHAIN(Op, DAG);
   default:
     return SDValue();
   }
+}
+
+SDValue URCLTargetLowering::LowerCopyToReg(SDValue Op,
+                                           SelectionDAG &DAG) const {
+  SDValue Src = Op.getOperand(2);
+
+  if (auto *FI = dyn_cast<FrameIndexSDNode>(Src.getNode())) {
+    SDValue Chain = Op.getOperand(0);
+    SDLoc DL(Op);
+    RegisterSDNode *R = cast<RegisterSDNode>(Op.getOperand(1));
+    Register Reg = R->getReg();
+    EVT VT = Src.getValueType();
+
+    SDValue TFI = DAG.getTargetFrameIndex(FI->getIndex(), VT);
+    SDValue ZeroImm = DAG.getTargetConstant(0, DL, VT);
+    SDValue MaterializedFI(
+        DAG.getMachineNode(URCL::ADDri, DL, VT, TFI, ZeroImm), 0);
+
+    if (Op.getNode()->getNumValues() == 1) {
+      return DAG.getCopyToReg(Chain, DL, Reg, MaterializedFI);
+    }
+
+    SDValue Glue = Op.getNumOperands() == 4 ? Op.getOperand(3) : SDValue();
+    return DAG.getCopyToReg(Chain, DL, Reg, MaterializedFI, Glue);
+  }
+
+  return SDValue();
 }
 
 URCLTargetLowering::URCLTargetLowering(const TargetMachine &TM,
@@ -185,6 +216,8 @@ URCLTargetLowering::URCLTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::BRCOND, MVT::Other, Expand);
   setOperationAction(ISD::BRIND, MVT::Other, Expand);
 
+  setOperationAction(ISD::CopyToReg, MVT::Other, Custom);
+
   setOperationAction(ISD::SELECT_CC, MVT::i32, Expand);
   // setOperationAction(ISD::SELECT_CC, MVT::f32, Custom);
   // setOperationAction(ISD::SELECT_CC, MVT::f64, Custom);
@@ -288,8 +321,6 @@ URCLTargetLowering::URCLTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::CTTZ_ZERO_POISON, MVT::i32, Expand);
   setOperationAction(ISD::CTTZ_ZERO_POISON, MVT::i64, Expand);
 
-  // setOperationAction(ISD::INTRINSIC_WO_CHAIN, MVT::Other, Custom);
-
   // Some processors have no branch predictor and have pipelines longer than
   // what can be covered by the delay slot. This results in a stall, so mark
   // branches to be expensive on those processors.
@@ -348,6 +379,28 @@ static bool isAnyArgRegReserved(const URCLRegisterInfo *TRI,
   return Outgoing || Incoming;
 }
 
+SDValue URCLTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
+                                                    SelectionDAG &DAG) const {
+  unsigned IntNo = Op.getConstantOperandVal(0);
+  switch (IntNo) {
+  default:
+    return SDValue();
+  case Intrinsic::thread_pointer: {
+    // TODO: not sure
+    assert(false);
+  }
+  }
+}
+
+bool URCLTargetLowering::CanLowerReturn(
+    CallingConv::ID CallConv, MachineFunction &MF, bool isVarArg,
+    const SmallVectorImpl<ISD::OutputArg> &Outs, LLVMContext &Context,
+    const Type *RetTy) const {
+  SmallVector<CCValAssign, 16> RVLocs;
+  CCState CCInfo(CallConv, isVarArg, MF, RVLocs, Context);
+  return CCInfo.CheckReturn(Outs, RetCC_URCL32);
+}
+
 SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
                                       SmallVectorImpl<SDValue> &InVals) const {
   SelectionDAG &DAG = CLI.DAG;
@@ -357,20 +410,20 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   SmallVectorImpl<ISD::InputArg> &Ins = CLI.Ins;
   SDValue Chain = CLI.Chain;
   SDValue Callee = CLI.Callee;
-  bool &isTailCall = CLI.IsTailCall;
+  bool &IsTailCall = CLI.IsTailCall;
   CallingConv::ID CallConv = CLI.CallConv;
-  bool isVarArg = CLI.IsVarArg;
+  bool IsVarArg = CLI.IsVarArg;
   MachineFunction &MF = DAG.getMachineFunction();
-  LLVMContext &Ctx = *DAG.getContext();
+  // LLVMContext &Ctx = *DAG.getContext();
   EVT PtrVT = getPointerTy(MF.getDataLayout());
 
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), ArgLocs,
+  CCState CCInfo(CallConv, IsVarArg, DAG.getMachineFunction(), ArgLocs,
                  *DAG.getContext());
   CCInfo.AnalyzeCallOperands(Outs, CC_URCL32);
 
-  isTailCall = isTailCall && false; // IsEligibleForTailCallOptimization(CCInfo,
+  IsTailCall = IsTailCall && false; // IsEligibleForTailCallOptimization(CCInfo,
                                     // CLI, DAG.getMachineFunction());
 
   // Get the size of the outgoing arguments stack space requirement.
@@ -410,9 +463,9 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     }
   }
 
-  assert(!isTailCall || ArgsSize == 0);
+  assert(!IsTailCall || ArgsSize == 0);
 
-  if (!isTailCall)
+  if (!IsTailCall)
     Chain = DAG.getCALLSEQ_START(Chain, ArgsSize, 0, dl);
 
   SmallVector<std::pair<unsigned, SDValue>, 8> RegsToPass;
@@ -461,7 +514,7 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     if (Flags.isSRet()) {
       assert(VA.needsCustom());
 
-      if (isTailCall)
+      if (IsTailCall)
         continue;
 
       assert(false);
@@ -514,7 +567,7 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
   SDValue InGlue;
   for (const auto &[OrigReg, N] : RegsToPass) {
-    Register Reg = isTailCall ? OrigReg : (OrigReg);
+    Register Reg = IsTailCall ? OrigReg : (OrigReg);
     Chain = DAG.getCopyToReg(Chain, dl, Reg, N, InGlue);
     InGlue = Chain.getValue(1);
   }
@@ -534,7 +587,7 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   if (hasStructRetAttr)
     Ops.push_back(DAG.getTargetConstant(SRetArgSize, dl, MVT::i32));
   for (const auto &[OrigReg, N] : RegsToPass) {
-    Register Reg = isTailCall ? OrigReg : (OrigReg);
+    Register Reg = IsTailCall ? OrigReg : (OrigReg);
     Ops.push_back(DAG.getRegister(Reg, N.getValueType()));
   }
 
@@ -554,7 +607,7 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     Ops.push_back(InGlue);
   }
 
-  if (isTailCall) {
+  if (IsTailCall) {
     assert(false);
   }
 
@@ -565,7 +618,7 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   InGlue = Chain.getValue(1);
 
   SmallVector<CCValAssign, 16> RVLocs;
-  CCState RVInfo(CallConv, isVarArg, DAG.getMachineFunction(), RVLocs,
+  CCState RVInfo(CallConv, IsVarArg, DAG.getMachineFunction(), RVLocs,
                  *DAG.getContext());
 
   RVInfo.AnalyzeCallResult(Ins, RetCC_URCL32);
@@ -684,7 +737,7 @@ SDValue URCLTargetLowering::LowerFormalArguments(
   CCInfo.AnalyzeFormalArguments(Ins, CC_URCL32);
 
   const unsigned StackOffset = 92;
-  bool IsLittleEndian = DAG.getDataLayout().isLittleEndian();
+  // bool IsLittleEndian = DAG.getDataLayout().isLittleEndian();
 
   unsigned InIdx = 0;
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i, ++InIdx) {
@@ -709,7 +762,8 @@ SDValue URCLTargetLowering::LowerFormalArguments(
         assert(false);
         // assert(VA.getLocVT() == MVT::f64 || VA.getLocVT() == MVT::v2i32);
 
-        // Register VRegHi = RegInfo.createVirtualRegister(&URCL::IntRegsRegClass);
+        // Register VRegHi =
+        // RegInfo.createVirtualRegister(&URCL::IntRegsRegClass);
         // MF.getRegInfo().addLiveIn(VA.getLocReg(), VRegHi);
         // SDValue HiVal = DAG.getCopyFromReg(Chain, dl, VRegHi, MVT::i32);
 
@@ -721,7 +775,8 @@ SDValue URCLTargetLowering::LowerFormalArguments(
         //   int FrameIdx = MF.getFrameInfo().CreateFixedObject(
         //       4, StackOffset + NextVA.getLocMemOffset(), true);
         //   SDValue FIPtr = DAG.getFrameIndex(FrameIdx, MVT::i32);
-        //   LoVal = DAG.getLoad(MVT::i32, dl, Chain, FIPtr, MachinePointerInfo());
+        //   LoVal = DAG.getLoad(MVT::i32, dl, Chain, FIPtr,
+        //   MachinePointerInfo());
         // } else {
         //   Register loReg =
         //       MF.addLiveIn(NextVA.getLocReg(), &URCL::IntRegsRegClass);
@@ -733,9 +788,8 @@ SDValue URCLTargetLowering::LowerFormalArguments(
 
         // SDValue WholeValue =
         //     DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i64, LoVal, HiVal);
-        // WholeValue = DAG.getNode(ISD::BITCAST, dl, VA.getLocVT(), WholeValue);
-        // InVals.push_back(WholeValue);
-        // continue;
+        // WholeValue = DAG.getNode(ISD::BITCAST, dl, VA.getLocVT(),
+        // WholeValue); InVals.push_back(WholeValue); continue;
       }
       Register VReg = RegInfo.createVirtualRegister(&URCL::IntRegsRegClass);
       MF.getRegInfo().addLiveIn(VA.getLocReg(), VReg);
@@ -784,9 +838,8 @@ SDValue URCLTargetLowering::LowerFormalArguments(
 
         // SDValue WholeValue =
         //     DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i64, LoVal, HiVal);
-        // WholeValue = DAG.getNode(ISD::BITCAST, dl, VA.getValVT(), WholeValue);
-        // InVals.push_back(WholeValue);
-        // continue;
+        // WholeValue = DAG.getNode(ISD::BITCAST, dl, VA.getValVT(),
+        // WholeValue); InVals.push_back(WholeValue); continue;
       }
 
       int FI = MF.getFrameInfo().CreateFixedObject(LocVT.getSizeInBits() / 8,

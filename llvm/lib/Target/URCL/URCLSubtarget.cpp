@@ -33,7 +33,7 @@ URCLSubtarget &URCLSubtarget::initializeSubtargetDependencies(StringRef CPU,
   // const Triple &TT = getTargetTriple();
   std::string CPUName = std::string(CPU);
   if (CPUName.empty())
-    CPUName = "URCL";
+    CPUName = "generic";
   if (TuneCPU.empty())
     TuneCPU = CPUName;
   ParseSubtargetFeatures(CPUName, TuneCPU, FS);

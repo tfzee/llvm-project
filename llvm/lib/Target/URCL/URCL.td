@@ -28,6 +28,16 @@ def URCLAsmWriter : AsmWriter {
   int Variant = 0;
 }
 
+class Proc<string Name, list<SubtargetFeature> Features,
+           list<SubtargetFeature> TuneFeatures = []>
+ : Processor<Name, NoItineraries, Features, TuneFeatures>;
+
+
+def FeatureSoftFloat : SubtargetFeature<"soft-float", "UseSoftFloat", "true",
+                              "Use software emulation for floating point">;
+                           
+def : Proc<"generic",         [FeatureSoftFloat]>;
+
 def URCL : Target {
   // Pull in Instruction Info:
   let InstructionSet = URCLInstrInfo;

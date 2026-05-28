@@ -8,6 +8,7 @@
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/MC/TargetRegistry.h"
+#include "llvm/Support/CodeGen.h"
 #include "llvm/Support/Compiler.h"
 #include <memory>
 #include <optional>
@@ -89,6 +90,15 @@ URCLTargetMachine::URCLTargetMachine(const Target &T, const Triple &TT,
           getEffectiveURCLCodeModel(CM, getEffectiveRelocModel(RM), false, JIT),
           OL),
       TLOF(std::make_unique<URCLELFTargetObjectFile>()) {
+
+  if (Options.FloatABIType == FloatABI::Default) {
+    this->Options.FloatABIType = FloatABI::Soft;
+  }
+  if (Options.EABIVersion == EABI::Default ||
+      Options.EABIVersion == EABI::Unknown) {
+    this->Options.EABIVersion = EABI::GNU;
+  }
+
   initAsmInfo();
 }
 

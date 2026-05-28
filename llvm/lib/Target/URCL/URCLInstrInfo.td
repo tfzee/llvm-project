@@ -269,7 +269,7 @@ def : Pat<(sub IntRegs:$rs1, (i32 -1)), (INC IntRegs:$rs1)>;
 
 // def : Pat<(i32 0), (COPY (i32 R0))>;
 def : Pat<(i32 simm32:$val),
-          (ADDri R0, $val)>;
+          (ADDri (i32 R0), imm:$val)>;
 
 
 defm LODB  : Load<"LOD",       extloadi8,  IntRegs, i32, simm32Op>;

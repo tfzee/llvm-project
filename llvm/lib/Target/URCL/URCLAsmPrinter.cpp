@@ -217,7 +217,7 @@ bool URCLAsmPrinter::doInitialization(Module &M) {
   }
 
   for (Function &F : M) {
-    if (F.hasName() && !F.getName().starts_with(".")) {
+    if (!F.isIntrinsic() && F.hasName() && !F.getName().starts_with(".")) {
       F.setName(Twine(".") + F.getName());
     }
   }

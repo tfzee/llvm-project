@@ -16,6 +16,7 @@
 #include "Arch/PPC.h"
 #include "Arch/RISCV.h"
 #include "Arch/Sparc.h"
+#include "Arch/URCL.h"
 #include "Arch/SystemZ.h"
 #include "Arch/VE.h"
 #include "Arch/X86.h"
@@ -803,6 +804,9 @@ std::string tools::getCPUName(const Driver &D, const ArgList &Args,
   case llvm::Triple::sparcv9:
     return sparc::getSparcTargetCPU(D, Args, T);
 
+  case llvm::Triple::urcl:
+    return urcl::getURCLTargetCPU(D, Args, T);
+
   case llvm::Triple::x86:
   case llvm::Triple::x86_64:
     return x86::getX86TargetCPU(D, Args, T);
@@ -898,6 +902,9 @@ void tools::getTargetFeatures(const Driver &D, const llvm::Triple &Triple,
   case llvm::Triple::sparcel:
   case llvm::Triple::sparcv9:
     sparc::getSparcTargetFeatures(D, Triple, Args, Features);
+    break;
+  case llvm::Triple::urcl:
+    urcl::getURCLTargetFeatures(D, Triple, Args, Features);
     break;
   case llvm::Triple::r600:
   case llvm::Triple::amdgcn:

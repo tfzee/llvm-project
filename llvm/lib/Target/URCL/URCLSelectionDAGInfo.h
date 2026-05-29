@@ -30,6 +30,7 @@ public:
     // These nodes don't have corresponding entries in *.td files yet.
     switch (static_cast<URCLISD::GenNodeType>(Opcode)) {
       CASE(WORD_ADDR);
+      CASE(TO_WORD_ADDR);
       CASE(CALL);
       CASE(GLOBAL_REF);
       CASE(RET);

@@ -50,6 +50,10 @@ public:
                       const SmallVectorImpl<ISD::OutputArg> &Outs,
                       LLVMContext &Context, const Type *RetTy) const override;
   bool useSoftFloat() const override { return true; }
+
+public:
+  SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+  SDValue DagCombineToWordAddrSimplifier(SDNode *N, DAGCombinerInfo &DCI) const;
 };
 } // namespace llvm
 #endif

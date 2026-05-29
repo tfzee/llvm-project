@@ -26,6 +26,7 @@ def URCLret : SDNode<"URCLISD::RET", URCL_RetProfile,
 def URCLret_glue : SDNode<"URCLISD::RET_GLUE", URCL_RetGlueProfile,
                          [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue, SDNPVariadic]>;
 
+def URCLToWordAddr : SDNode<"URCLISD::TO_WORD_ADDR", SDTIntUnaryOp>;
 def URCLword_addr : SDNode<"URCLISD::WORD_ADDR", SDTIntUnaryOp>;
 def URCLGLobalRef : SDNode<"URCLISD::GLOBAL_REF", SDTIntUnaryOp>;
 
@@ -261,11 +262,16 @@ let hasSideEffects = 0 in {
                "dec $rd, $rs1",
                [(set i32:$rd, (add IntRegs:$rs1, (i32 -1)))],
                  NoItinerary>;
+  def NOT  : Base_Instr2<(outs IntRegs:$rd), (ins IntRegs:$rs1),
+               "not $rd, $rs1",
+               [(set i32:$rd, (not IntRegs:$rs1))],
+                 NoItinerary>;
 
 }
     
 def : Pat<(sub IntRegs:$rs1, (i32 1)), (DEC IntRegs:$rs1)>;
 def : Pat<(sub IntRegs:$rs1, (i32 -1)), (INC IntRegs:$rs1)>;
+def : Pat<(URCLToWordAddr IntRegs:$rs1), (BSRri IntRegs:$rs1, (i32 2))>;
 
 // def : Pat<(i32 0), (COPY (i32 R0))>;
 def : Pat<(i32 simm32:$val),

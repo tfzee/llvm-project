@@ -943,8 +943,7 @@ SDValue URCLTargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
     return SDValue();
   }
 
-  SDValue WordAddr = DAG.getNode(ISD::SRL, DL, MVT::i32, Ptr,
-                                 DAG.getConstant(2, DL, MVT::i32));
+  SDValue WordAddr = DAG.getNode(URCLISD::TO_WORD_ADDR, DL, MVT::i32, Ptr);
 
   SDValue WrappedPtr = DAG.getNode(URCLISD::WORD_ADDR, DL, MVT::i32, WordAddr);
 
@@ -986,8 +985,7 @@ SDValue URCLTargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
     return SDValue();
   }
 
-  SDValue WordAddr = DAG.getNode(ISD::SRL, DL, MVT::i32, Ptr,
-                                 DAG.getConstant(2, DL, MVT::i32));
+  SDValue WordAddr = DAG.getNode(URCLISD::TO_WORD_ADDR, DL, MVT::i32, Ptr);
 
   SDValue WrappedPtr = DAG.getNode(URCLISD::WORD_ADDR, DL, MVT::i32, WordAddr);
 
@@ -1054,4 +1052,54 @@ SDValue URCLTargetLowering::LowerSELECT(SDValue Op, SelectionDAG &DAG) const {
   SDValue FalsePart = DAG.getNode(ISD::AND, DL, VT, FalseV, NotMask);
 
   return DAG.getNode(ISD::OR, DL, VT, TruePart, FalsePart);
+}
+
+SDValue URCLTargetLowering::PerformDAGCombine(SDNode *N,
+                                              DAGCombinerInfo &DCI) const {
+  switch (N->getOpcode()) {
+  default:
+    break;
+  case URCLISD::TO_WORD_ADDR:
+    return DagCombineToWordAddrSimplifier(N, DCI);
+  }
+  return SDValue();
+}
+
+SDValue
+URCLTargetLowering::DagCombineToWordAddrSimplifier(SDNode *N,
+                                                   DAGCombinerInfo &DCI) const {
+  SelectionDAG &DAG = DCI.DAG;
+
+  SDValue Op = N->getOperand(0);
+  if (Op.getOpcode() == ISD::ADD) {
+    SDValue Arg0 = Op.getOperand(0);
+    SDValue Arg1 = Op.getOperand(1);
+    if (auto *C = dyn_cast<ConstantSDNode>(Arg1)) {
+      int64_t Imm = C->getSExtValue();
+      // could do it aswell but mostlikely doesnt make sense since we then have
+      // mostlikely a unaligned load and want to resuse the lower bits
+      if (Imm % 4 == 0) {
+        SDLoc DL(N);
+        EVT VT = N->getValueType(0);
+        SDValue NewToWordAddr =
+            DAG.getNode(URCLISD::TO_WORD_ADDR, DL, VT, Arg0);
+        int64_t NewImm = Imm / 4;
+        SDValue NewConst = DAG.getSignedConstant(NewImm, DL, VT);
+        return DAG.getNode(ISD::ADD, DL, VT, NewToWordAddr, NewConst);
+      }
+      // could do it for others aswell but mostlikely doesnt make sense since we
+      // then have mostlikely a unaligned load and want to resuse the lower bits
+    } else if (Op->hasOneUse()) {
+      SDLoc DL(N);
+      EVT VT = N->getValueType(0);
+      SDValue NewToWordAddr1 = DAG.getNode(URCLISD::TO_WORD_ADDR, DL, VT, Arg0);
+      SDValue NewToWordAddr2 = DAG.getNode(URCLISD::TO_WORD_ADDR, DL, VT, Arg1);
+      return DAG.getNode(ISD::ADD, DL, VT, NewToWordAddr1, NewToWordAddr2);
+    }
+  } else if (Op.getOpcode() == ISD::SHL) {
+    SDValue Arg0 = Op.getOperand(0);
+    return Arg0;
+  }
+
+  return SDValue();
 }

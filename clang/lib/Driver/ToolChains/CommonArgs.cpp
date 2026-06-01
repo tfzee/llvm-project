@@ -804,7 +804,9 @@ std::string tools::getCPUName(const Driver &D, const ArgList &Args,
   case llvm::Triple::sparcv9:
     return sparc::getSparcTargetCPU(D, Args, T);
 
-  case llvm::Triple::urcl:
+  case llvm::Triple::urcl8:
+  case llvm::Triple::urcl16:
+  case llvm::Triple::urcl32:
     return urcl::getURCLTargetCPU(D, Args, T);
 
   case llvm::Triple::x86:
@@ -903,7 +905,9 @@ void tools::getTargetFeatures(const Driver &D, const llvm::Triple &Triple,
   case llvm::Triple::sparcv9:
     sparc::getSparcTargetFeatures(D, Triple, Args, Features);
     break;
-  case llvm::Triple::urcl:
+  case llvm::Triple::urcl8:
+  case llvm::Triple::urcl16:
+  case llvm::Triple::urcl32:
     urcl::getURCLTargetFeatures(D, Triple, Args, Features);
     break;
   case llvm::Triple::r600:

@@ -1592,7 +1592,9 @@ void Clang::RenderTargetOptions(const llvm::Triple &EffectiveTriple,
   case llvm::Triple::sparcv9:
     AddSparcTargetArgs(Args, CmdArgs);
     break;
-  case llvm::Triple::urcl:
+  case llvm::Triple::urcl8:
+  case llvm::Triple::urcl16:
+  case llvm::Triple::urcl32:
     AddURCLTargetArgs(Args, CmdArgs);
     break;
   case llvm::Triple::systemz:

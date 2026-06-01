@@ -47,12 +47,27 @@ def R16 : Ri<16, "r16">, DwarfRegNum<[16]>;
 
 def SP : Ri< 1, "SP">, DwarfRegNum<[17]>;
 
+
+def DynamicRegType : ValueTypeByHwMode<
+  [URCL8, URCL16, URCL32], 
+  [i8,       i16,       i32]
+>;
+def DynamicRegInfo : RegInfoByHwMode<
+  [URCL8,             URCL16,            URCL32],
+  [RegInfo<8, 8, 8>,  RegInfo<16,16,16>, RegInfo<32,32,32>]
+>;
+
 // FIXME: the register order should be defined in terms of the preferred
 // allocation order...
-def IntRegs : RegisterClass<"URCL", [i32], 32,
-                            (sequence "R%u", 0, 16)>;
+def IntRegs : RegisterClass<"URCL", [DynamicRegType], 32, (sequence "R%u", 0, 16)>{
+  let RegInfos = DynamicRegInfo;
+}
 
 // GPR argument registers.
-def GPROutgoingArg : RegisterClass<"URCL", [i32], 32, (sequence "R%u", 1, 6)>;
-def GPRIncomingArg : RegisterClass<"URCL", [i32], 32, (sequence "R%u", 1, 6)>;
+def GPROutgoingArg : RegisterClass<"URCL", [DynamicRegType], 32, (sequence "R%u", 1, 6)>{
+  let RegInfos = DynamicRegInfo;
+}
+def GPRIncomingArg : RegisterClass<"URCL", [DynamicRegType], 32, (sequence "R%u", 1, 6)>{
+  let RegInfos = DynamicRegInfo;
+}
 

@@ -13,7 +13,9 @@ namespace llvm {
 
 class Target;
 
-Target &getTheURCLTarget();
+Target &getTheURCL8Target();
+Target &getTheURCL16Target();
+Target &getTheURCL32Target();
 
 } // namespace llvm
 

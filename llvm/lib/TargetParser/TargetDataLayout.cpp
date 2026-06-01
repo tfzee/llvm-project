@@ -364,15 +364,12 @@ static std::string computeSparcDataLayout(const Triple &T) {
 }
 
 static std::string computeURCLDataLayout(const Triple &T) {
-  std::string Ret = "E";
-  Ret += "-m:e";
-  Ret += "-p:32:32:32";
-  Ret += "-i32:32:32";
-  // Ret += "-i64:64:64";
-  Ret += "-a:0:32";
-  Ret += "-n32";
-  Ret += "-S32";
-  return Ret;
+  if (T.getArch() == Triple::urcl8)
+    return "e-m:e-p:8:8-i8:8-i16:8-i32:8-i64:8-f32:8-f64:8-n8-S8";
+  if (T.getArch() == Triple::urcl16)
+    return "e-m:e-p:16:16-i8:8-i16:16-i32:16-i64:16-f32:16-f64:16-n8:16-S16";
+
+  return "e-m:e-p:32:32-i8:8-i16:16-i32:32-i64:32-f32:32-f64:32-n32-S32";
 }
 
 static std::string computeSystemZDataLayout(const Triple &TT) {
@@ -617,7 +614,9 @@ std::string Triple::computeDataLayout(StringRef ABIName) const {
   case Triple::riscv32be:
   case Triple::riscv64be:
     return computeRISCVDataLayout(*this, ABIName);
-  case Triple::urcl:
+  case Triple::urcl8:
+  case Triple::urcl16:
+  case Triple::urcl32:
     return computeURCLDataLayout(*this);
   case Triple::sparc:
   case Triple::sparcv9:

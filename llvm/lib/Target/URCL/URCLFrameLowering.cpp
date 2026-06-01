@@ -41,21 +41,33 @@ void URCLFrameLowering::emitSPAdjustment(MachineFunction &MF,
   const URCLInstrInfo &TII =
       *static_cast<const URCLInstrInfo *>(MF.getSubtarget().getInstrInfo());
 
+  auto &Subtarget = MF.getSubtarget<URCLSubtarget>();
+  uint32_t AbsNumBytes = NumBytes < 0 ? -NumBytes : NumBytes;
+  uint32_t AlignedNumBytes = 0;
+  if (Subtarget.is32Bit()) {
+    AlignedNumBytes = ((AbsNumBytes + 3) / 4);
+  } else if (Subtarget.is16Bit()) {
+    AlignedNumBytes = ((AbsNumBytes + 1) / 2);
+  } else if (Subtarget.is8Bit()) {
+    AlignedNumBytes = AbsNumBytes;
+  }
+
   if (NumBytes < 0) {
     BuildMI(MBB, MBBI, DL, TII.get(SUBri), URCL::SP)
         .addReg(URCL::SP)
-        .addImm(((-NumBytes) + 3) / 4);
+        .addImm(AlignedNumBytes);
   } else {
     BuildMI(MBB, MBBI, DL, TII.get(ADDri), URCL::SP)
         .addReg(URCL::SP)
-        .addImm((NumBytes + 3) / 4);
+        .addImm(AlignedNumBytes);
   }
   return;
 }
 
 URCLFrameLowering::URCLFrameLowering(const URCLSubtarget &ST)
-    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, Align(8), 0,
-                          Align(8),
+    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown,
+                          Align(ST.getWordSizeBytes()*2), 0,
+                          Align(ST.getWordSizeBytes()*2),
                           /*StackRealignable=*/false) {}
 
 void URCLFrameLowering::emitPrologue(MachineFunction &MF,

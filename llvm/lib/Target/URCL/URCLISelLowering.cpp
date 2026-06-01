@@ -16,6 +16,7 @@
 #include "URCLMachineFunctionInfo.h"
 #include "URCLRegisterInfo.h"
 #include "URCLSelectionDAGInfo.h"
+#include "URCLSubtarget.h"
 #include "URCLTargetMachine.h"
 #include "URCLTargetObjectFile.h"
 #include "llvm/ADT/StringExtras.h"
@@ -38,6 +39,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/KnownBits.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 SDValue URCLTargetLowering::LowerOperation(SDValue Op,
@@ -95,62 +97,86 @@ URCLTargetLowering::URCLTargetLowering(const TargetMachine &TM,
   setBooleanVectorContents(ZeroOrNegativeOneBooleanContent);
   setBooleanContents(ZeroOrNegativeOneBooleanContent);
 
-  setOperationAction(ISD::GlobalAddress, MVT::i32, Custom);
+  uint32_t WordSize;
+  MVT WordType = Subtarget->getWordType();
+  MVT ExtWordType;
+  addRegisterClass(WordType, &URCL::IntRegsRegClass);
+  switch (Subtarget->getWordSize()) {
+  case llvm::URCLSubtarget::WordSize::Word32:
+    ExtWordType = MVT::v2i32;
+    WordSize = 32;
+    break;
+  case llvm::URCLSubtarget::WordSize::Word16:
+    ExtWordType = MVT::v2i16;
+    WordSize = 16;
+    setOperationAction(ISD::LOAD, MVT::i32, Expand);
+    setOperationAction(ISD::STORE, MVT::i32, Expand);
+    break;
+  case llvm::URCLSubtarget::WordSize::Word8:
+    ExtWordType = MVT::v2i8;
+    WordSize = 8;
+    setOperationAction(ISD::LOAD, MVT::i16, Expand);
+    setOperationAction(ISD::STORE, MVT::i16, Expand);
+    setOperationAction(ISD::LOAD, MVT::i32, Expand);
+    setOperationAction(ISD::STORE, MVT::i32, Expand);
+    break;
+  }
+  llvm::errs() << "Compiling for WordSize:" << WordSize << "\n";
 
-  addRegisterClass(MVT::i32, &URCL::IntRegsRegClass);
+  setOperationAction(ISD::GlobalAddress, WordType, Custom);
 
   for (unsigned Op = 0; Op < ISD::BUILTIN_OP_END; ++Op) {
-    setOperationAction(Op, MVT::v2i32, Expand);
+    setOperationAction(Op, ExtWordType, Expand);
   }
   for (MVT VT : MVT::integer_fixedlen_vector_valuetypes()) {
-    setLoadExtAction(ISD::SEXTLOAD, VT, MVT::v2i32, Expand);
-    setLoadExtAction(ISD::ZEXTLOAD, VT, MVT::v2i32, Expand);
-    setLoadExtAction(ISD::EXTLOAD, VT, MVT::v2i32, Expand);
+    setLoadExtAction(ISD::SEXTLOAD, VT, ExtWordType, Expand);
+    setLoadExtAction(ISD::ZEXTLOAD, VT, ExtWordType, Expand);
+    setLoadExtAction(ISD::EXTLOAD, VT, ExtWordType, Expand);
 
-    setLoadExtAction(ISD::SEXTLOAD, MVT::v2i32, VT, Expand);
-    setLoadExtAction(ISD::ZEXTLOAD, MVT::v2i32, VT, Expand);
-    setLoadExtAction(ISD::EXTLOAD, MVT::v2i32, VT, Expand);
+    setLoadExtAction(ISD::SEXTLOAD, ExtWordType, VT, Expand);
+    setLoadExtAction(ISD::ZEXTLOAD, ExtWordType, VT, Expand);
+    setLoadExtAction(ISD::EXTLOAD, ExtWordType, VT, Expand);
 
-    setTruncStoreAction(VT, MVT::v2i32, Expand);
-    setTruncStoreAction(MVT::v2i32, VT, Expand);
+    setTruncStoreAction(VT, ExtWordType, Expand);
+    setTruncStoreAction(ExtWordType, VT, Expand);
   }
-  setOperationAction(ISD::LOAD, MVT::v2i32, Expand);
-  setOperationAction(ISD::STORE, MVT::v2i32, Expand);
+  setOperationAction(ISD::LOAD, ExtWordType, Expand);
+  setOperationAction(ISD::STORE, ExtWordType, Expand);
   setOperationAction(ISD::EXTRACT_VECTOR_ELT, MVT::v2i32, Expand);
   setOperationAction(ISD::BUILD_VECTOR, MVT::v2i32, Expand);
 
   setOperationAction(ISD::LOAD, MVT::i64, Expand);
   setOperationAction(ISD::STORE, MVT::i64, Expand);
+  if (WordSize < 32) {
+    setOperationAction(ISD::LOAD, MVT::i32, Expand);
+    setOperationAction(ISD::STORE, MVT::i32, Expand);
+  }
+  if (WordSize < 16) {
+    setOperationAction(ISD::LOAD, MVT::i16, Expand);
+    setOperationAction(ISD::STORE, MVT::i16, Expand);
+  }
 
-  setOperationAction(ISD::LOAD, MVT::i32, Custom);
-  setOperationAction(ISD::STORE, MVT::i32, Custom);
-  setLoadExtAction(ISD::EXTLOAD, MVT::i32, MVT::i8, Custom);
-  setLoadExtAction(ISD::EXTLOAD, MVT::i32, MVT::i16, Custom);
-  setLoadExtAction(ISD::ZEXTLOAD, MVT::i32, MVT::i8, Expand);
-  setLoadExtAction(ISD::SEXTLOAD, MVT::i32, MVT::i8, Expand);
-  setLoadExtAction(ISD::ZEXTLOAD, MVT::i32, MVT::i16, Expand);
-  setLoadExtAction(ISD::SEXTLOAD, MVT::i32, MVT::i16, Expand);
+  setOperationAction(ISD::LOAD, WordType, Custom);
+  setOperationAction(ISD::STORE, WordType, Custom);
+  if (WordSize > 8) {
+    setLoadExtAction(ISD::EXTLOAD, WordType, MVT::i8, Custom);
+    setLoadExtAction(ISD::ZEXTLOAD, WordType, MVT::i8, Expand);
+    setLoadExtAction(ISD::SEXTLOAD, WordType, MVT::i8, Expand);
+  }
+  if (WordSize > 16) {
+    setLoadExtAction(ISD::EXTLOAD, WordType, MVT::i16, Custom);
+    setLoadExtAction(ISD::ZEXTLOAD, WordType, MVT::i16, Expand);
+    setLoadExtAction(ISD::SEXTLOAD, WordType, MVT::i16, Expand);
+  }
 
-  setOperationAction(ISD::STORE, MVT::i16, Expand);
-  setOperationAction(ISD::STORE, MVT::i8, Expand);
-  setTruncStoreAction(MVT::i32, MVT::i8, Custom);
-  setTruncStoreAction(MVT::i32, MVT::i16, Custom);
-
-  // setOperationAction(ISD::LOAD, MVT::i8,  Custom);
-  // setOperationAction(ISD::STORE, MVT::i8, Custom);
-  // setOperationAction(ISD::LOAD, MVT::i16, Custom);
-  // setOperationAction(ISD::STORE, MVT::i16, Custom);
-  // setOperationAction(ISD::LOAD, MVT::i32,  Custom);
-  // setOperationAction(ISD::STORE, MVT::i32, Custom);
-
-  // setLoadExtAction(ISD::SEXTLOAD, MVT::i32, MVT::i8, Expand);
-  // setLoadExtAction(ISD::ZEXTLOAD, MVT::i32, MVT::i8, Expand);
-
-  // for (MVT VT : MVT::fp_valuetypes()) {
-  //   setLoadExtAction(ISD::EXTLOAD, VT, MVT::f16, Expand);
-  //   setLoadExtAction(ISD::EXTLOAD, VT, MVT::f32, Expand);
-  //   setLoadExtAction(ISD::EXTLOAD, VT, MVT::f64, Expand);
-  // }
+  if (WordSize > 8) {
+    setOperationAction(ISD::STORE, MVT::i8, Expand);
+    setTruncStoreAction(MVT::i32, MVT::i8, Custom);
+  }
+  if (WordSize > 16) {
+    setOperationAction(ISD::STORE, MVT::i16, Expand);
+    setTruncStoreAction(MVT::i32, MVT::i16, Custom);
+  }
 
   for (MVT VT : MVT::integer_valuetypes())
     setLoadExtAction(ISD::SEXTLOAD, VT, MVT::i1, Promote);
@@ -168,69 +194,32 @@ URCLTargetLowering::URCLTargetLowering(const TargetMachine &TM,
   // setOperationAction(ISD::BlockAddress, PtrVT, Custom);
 
   // URCL doesn't have sext_inreg, replace them with shl/sra
+  setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i32, Expand);
   setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i16, Expand);
   setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i8, Expand);
   setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i1, Expand);
 
-  // URCL has no REM or DIVREM operations.
-  // setOperationAction(ISD::UREM, MVT::i32, Expand);
-  // setOperationAction(ISD::SREM, MVT::i32, Expand);
-  // setOperationAction(ISD::SDIVREM, MVT::i32, Expand);
-  // setOperationAction(ISD::UDIVREM, MVT::i32, Expand);
-
-  // Custom expand fp<->sint
-  // setOperationAction(ISD::FP_TO_SINT, MVT::i32, Custom);
-  // setOperationAction(ISD::SINT_TO_FP, MVT::i32, Custom);
-  // setOperationAction(ISD::FP_TO_SINT, MVT::i64, Custom);
-  // setOperationAction(ISD::SINT_TO_FP, MVT::i64, Custom);
-
-  // Custom Expand fp<->uint
-  // setOperationAction(ISD::FP_TO_UINT, MVT::i32, Custom);
-  // setOperationAction(ISD::UINT_TO_FP, MVT::i32, Custom);
-  // setOperationAction(ISD::FP_TO_UINT, MVT::i64, Custom);
-  // setOperationAction(ISD::UINT_TO_FP, MVT::i64, Custom);
-
-  // Lower f16 conversion operations into library calls
-  // setOperationAction(ISD::FP16_TO_FP, MVT::f32, Expand);
-  // setOperationAction(ISD::FP_TO_FP16, MVT::f32, Expand);
-  // setOperationAction(ISD::FP16_TO_FP, MVT::f64, Expand);
-  // setOperationAction(ISD::FP_TO_FP16, MVT::f64, Expand);
-  // setOperationAction(ISD::FP16_TO_FP, MVT::f128, Expand);
-  // setOperationAction(ISD::FP_TO_FP16, MVT::f128, Expand);
-
-  setOperationAction(ISD::BITCAST, MVT::f32, Expand);
-  setOperationAction(ISD::BITCAST, MVT::i32, Expand);
+  // setOperationAction(ISD::BITCAST, MVT::f32, Expand);
+  // setOperationAction(ISD::BITCAST, MVT::i32, Expand);
 
   // URCL has no select: expand to SELECT_CC.
-  setOperationAction(ISD::SELECT, MVT::i32, Custom);
-  // setOperationAction(ISD::SELECT, MVT::f32, Expand);
-  // setOperationAction(ISD::SELECT, MVT::f64, Expand);
-  // setOperationAction(ISD::SELECT, MVT::f128, Expand);
-
-  setOperationAction(ISD::SETCC, MVT::i32, Legal);
-  // setOperationAction(ISD::SETCC, MVT::f32, Expand);
-  // setOperationAction(ISD::SETCC, MVT::f64, Expand);
-  // setOperationAction(ISD::SETCC, MVT::f128, Expand);
+  setOperationAction(ISD::SELECT, WordType, Custom);
+  setOperationAction(ISD::SETCC, WordType, Legal);
 
   // URCL doesn't have BRCOND either, it has BR_CC.
   setOperationAction(ISD::BRCOND, MVT::Other, Expand);
   setOperationAction(ISD::BRIND, MVT::Other, Expand);
 
   setOperationAction(ISD::CopyToReg, MVT::Other, Custom);
+  setOperationAction(ISD::SELECT_CC, WordType, Expand);
 
-  setOperationAction(ISD::SELECT_CC, MVT::i32, Expand);
-  // setOperationAction(ISD::SELECT_CC, MVT::f32, Custom);
-  // setOperationAction(ISD::SELECT_CC, MVT::f64, Custom);
-  // setOperationAction(ISD::SELECT_CC, MVT::f128, Custom);
-
-  setOperationAction(ISD::ADDC, MVT::i32, Legal);
-  setOperationAction(ISD::ADDE, MVT::i32, Legal);
-  setOperationAction(ISD::SUBC, MVT::i32, Legal);
-  setOperationAction(ISD::SUBE, MVT::i32, Legal);
+  // setOperationAction(ISD::ADDC, MVT::i32, Legal);
+  // setOperationAction(ISD::ADDE, MVT::i32, Legal);
+  // setOperationAction(ISD::SUBC, MVT::i32, Legal);
+  // setOperationAction(ISD::SUBE, MVT::i32, Legal);
 
   setMaxAtomicSizeInBitsSupported(0);
-
-  setMinCmpXchgSizeInBits(32);
+  setMinCmpXchgSizeInBits(WordSize);
 
   // setOperationAction(ISD::ATOMIC_SWAP, MVT::i32, Legal);
   // setOperationAction(ISD::ATOMIC_FENCE, MVT::Other, Legal);
@@ -239,39 +228,39 @@ URCLTargetLowering::URCLTargetLowering(const TargetMachine &TM,
   // setOperationAction(ISD::FNEG, MVT::f64, Custom);
   // setOperationAction(ISD::FABS, MVT::f64, Custom);
 
-  setOperationAction(ISD::FSIN, MVT::f128, Expand);
-  setOperationAction(ISD::FCOS, MVT::f128, Expand);
-  setOperationAction(ISD::FSINCOS, MVT::f128, Expand);
-  setOperationAction(ISD::FREM, MVT::f128, LibCall);
-  setOperationAction(ISD::FMA, MVT::f128, Expand);
-  setOperationAction(ISD::FSIN, MVT::f64, Expand);
-  setOperationAction(ISD::FCOS, MVT::f64, Expand);
-  setOperationAction(ISD::FSINCOS, MVT::f64, Expand);
-  setOperationAction(ISD::FREM, MVT::f64, LibCall);
-  setOperationAction(ISD::FMA, MVT::f64, Expand);
-  setOperationAction(ISD::FSIN, MVT::f32, Expand);
-  setOperationAction(ISD::FCOS, MVT::f32, Expand);
-  setOperationAction(ISD::FSINCOS, MVT::f32, Expand);
-  setOperationAction(ISD::FREM, MVT::f32, LibCall);
-  setOperationAction(ISD::FMA, MVT::f32, Expand);
-  setOperationAction(ISD::ROTL, MVT::i32, Expand);
-  setOperationAction(ISD::ROTR, MVT::i32, Expand);
-  setOperationAction(ISD::BSWAP, MVT::i32, Expand);
-  setOperationAction(ISD::FCOPYSIGN, MVT::f128, Expand);
-  setOperationAction(ISD::FCOPYSIGN, MVT::f64, Expand);
-  setOperationAction(ISD::FCOPYSIGN, MVT::f32, Expand);
-  setOperationAction(ISD::FPOW, MVT::f128, Expand);
-  setOperationAction(ISD::FPOW, MVT::f64, Expand);
-  setOperationAction(ISD::FPOW, MVT::f32, Expand);
+  // setOperationAction(ISD::FSIN, MVT::f128, Expand);
+  // setOperationAction(ISD::FCOS, MVT::f128, Expand);
+  // setOperationAction(ISD::FSINCOS, MVT::f128, Expand);
+  // setOperationAction(ISD::FREM, MVT::f128, LibCall);
+  // setOperationAction(ISD::FMA, MVT::f128, Expand);
+  // setOperationAction(ISD::FSIN, MVT::f64, Expand);
+  // setOperationAction(ISD::FCOS, MVT::f64, Expand);
+  // setOperationAction(ISD::FSINCOS, MVT::f64, Expand);
+  // setOperationAction(ISD::FREM, MVT::f64, LibCall);
+  // setOperationAction(ISD::FMA, MVT::f64, Expand);
+  // setOperationAction(ISD::FSIN, MVT::f32, Expand);
+  // setOperationAction(ISD::FCOS, MVT::f32, Expand);
+  // setOperationAction(ISD::FSINCOS, MVT::f32, Expand);
+  // setOperationAction(ISD::FREM, MVT::f32, LibCall);
+  // setOperationAction(ISD::FMA, MVT::f32, Expand);
+  // setOperationAction(ISD::ROTL, MVT::i32, Expand);
+  // setOperationAction(ISD::ROTR, MVT::i32, Expand);
+  // setOperationAction(ISD::BSWAP, MVT::i32, Expand);
+  // setOperationAction(ISD::FCOPYSIGN, MVT::f128, Expand);
+  // setOperationAction(ISD::FCOPYSIGN, MVT::f64, Expand);
+  // setOperationAction(ISD::FCOPYSIGN, MVT::f32, Expand);
+  // setOperationAction(ISD::FPOW, MVT::f128, Expand);
+  // setOperationAction(ISD::FPOW, MVT::f64, Expand);
+  // setOperationAction(ISD::FPOW, MVT::f32, Expand);
 
-  setOperationAction(ISD::SHL_PARTS, MVT::i32, Expand);
-  setOperationAction(ISD::SRA_PARTS, MVT::i32, Expand);
-  setOperationAction(ISD::SRL_PARTS, MVT::i32, Expand);
+  setOperationAction(ISD::SHL_PARTS, WordType, Expand);
+  setOperationAction(ISD::SRA_PARTS, WordType, Expand);
+  setOperationAction(ISD::SRL_PARTS, WordType, Expand);
 
   // Expands to [SU]MUL_LOHI.
-  setOperationAction(ISD::MULHU, MVT::i32, Legal);
-  setOperationAction(ISD::MULHS, MVT::i32, Legal);
-  setOperationAction(ISD::MUL, MVT::i32, Legal);
+  setOperationAction(ISD::MULHU, WordType, Legal);
+  setOperationAction(ISD::MULHS, WordType, Legal);
+  setOperationAction(ISD::MUL, WordType, Legal);
 
   // VASTART needs to be custom lowered to use the VarArgsFrameIndex.
   // setOperationAction(ISD::VASTART, MVT::Other, Custom);
@@ -281,54 +270,52 @@ URCLTargetLowering::URCLTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::TRAP, MVT::Other, Legal);
   setOperationAction(ISD::DEBUGTRAP, MVT::Other, Legal);
 
-  // Use the default implementation.
   setOperationAction(ISD::VACOPY, MVT::Other, Expand);
   setOperationAction(ISD::VAEND, MVT::Other, Expand);
   setOperationAction(ISD::STACKSAVE, MVT::Other, Expand);
   setOperationAction(ISD::STACKRESTORE, MVT::Other, Expand);
-  // setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Custom);
-  // setOperationAction(ISD::STACKADDRESS, MVT::Other, Custom);
 
   setStackPointerRegisterToSaveRestore(URCL::SP);
 
-  setOperationAction(ISD::CTPOP, MVT::i32, Expand);
+  setOperationAction(ISD::CTPOP, WordType, Expand);
 
-  setOperationAction(ISD::LOAD, MVT::f128, Expand);
-  setOperationAction(ISD::STORE, MVT::f128, Expand);
-
-  setOperationAction(ISD::FADD, MVT::f128, Expand);
-  setOperationAction(ISD::FSUB, MVT::f128, Expand);
-  setOperationAction(ISD::FMUL, MVT::f128, Expand);
-  setOperationAction(ISD::FDIV, MVT::f128, Expand);
-  setOperationAction(ISD::FSQRT, MVT::f128, Expand);
-  setOperationAction(ISD::FNEG, MVT::f128, Expand);
-  setOperationAction(ISD::FABS, MVT::f128, Expand);
+  // setOperationAction(ISD::LOAD, MVT::f128, Expand);
+  // setOperationAction(ISD::STORE, MVT::f128, Expand);
+  // setOperationAction(ISD::FADD, MVT::f128, Expand);
+  // setOperationAction(ISD::FSUB, MVT::f128, Expand);
+  // setOperationAction(ISD::FMUL, MVT::f128, Expand);
+  // setOperationAction(ISD::FDIV, MVT::f128, Expand);
+  // setOperationAction(ISD::FSQRT, MVT::f128, Expand);
+  // setOperationAction(ISD::FNEG, MVT::f128, Expand);
+  // setOperationAction(ISD::FABS, MVT::f128, Expand);
 
   // setOperationAction(ISD::FP_EXTEND, MVT::f128, Custom);
   // setOperationAction(ISD::FP_ROUND, MVT::f64, Custom);
   // setOperationAction(ISD::FP_ROUND, MVT::f32, Custom);
 
-  // Custom combine bitcast between f64 and v2i32
-  // setTargetDAGCombine(ISD::BITCAST);
-
+  setOperationAction(ISD::CTLZ, MVT::i8, Expand);
+  setOperationAction(ISD::CTLZ, MVT::i16, Expand);
   setOperationAction(ISD::CTLZ, MVT::i32, Expand);
   setOperationAction(ISD::CTLZ, MVT::i64, Expand);
-  setOperationAction(ISD::CTLZ_ZERO_POISON, MVT::i32, LibCall);
-  setOperationAction(ISD::CTLZ_ZERO_POISON, MVT::i64, LibCall);
+  setOperationAction(ISD::CTLZ_ZERO_POISON, MVT::i8, Expand);
+  setOperationAction(ISD::CTLZ_ZERO_POISON, MVT::i16, Expand);
+  setOperationAction(ISD::CTLZ_ZERO_POISON, MVT::i32, Expand);
+  setOperationAction(ISD::CTLZ_ZERO_POISON, MVT::i64, Expand);
 
+  setOperationAction(ISD::CTTZ, MVT::i8, Expand);
+  setOperationAction(ISD::CTTZ, MVT::i16, Expand);
   setOperationAction(ISD::CTTZ, MVT::i32, Expand);
   setOperationAction(ISD::CTTZ, MVT::i64, Expand);
+  setOperationAction(ISD::CTTZ_ZERO_POISON, MVT::i8, Expand);
+  setOperationAction(ISD::CTTZ_ZERO_POISON, MVT::i16, Expand);
   setOperationAction(ISD::CTTZ_ZERO_POISON, MVT::i32, Expand);
   setOperationAction(ISD::CTTZ_ZERO_POISON, MVT::i64, Expand);
 
-  // Some processors have no branch predictor and have pipelines longer than
-  // what can be covered by the delay slot. This results in a stall, so mark
-  // branches to be expensive on those processors.
   setJumpIsExpensive(false);
-  // The high cost of branching means that using conditional moves will
-  // still be profitable even if the condition is predictable.
   PredictableSelectIsExpensive = !isJumpExpensive();
-  setMinFunctionAlignment(Align(4));
+
+  assert(WordSize % 4 == 0);
+  setMinFunctionAlignment(Align(WordSize / 4));
 
   computeRegisterProperties(Subtarget->getRegisterInfo());
 }
@@ -365,9 +352,6 @@ static bool hasReturnsTwiceAttr(SelectionDAG &DAG, SDValue Callee,
 // Check whether any of the argument registers are reserved
 static bool isAnyArgRegReserved(const URCLRegisterInfo *TRI,
                                 const MachineFunction &MF) {
-  // The register window design means that outgoing parameters at O*
-  // will appear in the callee as I*.
-  // Be conservative and check both sides of the register names.
   bool Outgoing =
       llvm::any_of(URCL::GPROutgoingArgRegClass, [TRI, &MF](MCPhysReg r) {
         return TRI->isReservedReg(MF, r);
@@ -398,7 +382,14 @@ bool URCLTargetLowering::CanLowerReturn(
     const Type *RetTy) const {
   SmallVector<CCValAssign, 16> RVLocs;
   CCState CCInfo(CallConv, isVarArg, MF, RVLocs, Context);
-  return CCInfo.CheckReturn(Outs, RetCC_URCL32);
+  switch (MF.getSubtarget<URCLSubtarget>().getWordSize()) {
+  case URCLSubtarget::WordSize::Word32:
+    return CCInfo.CheckReturn(Outs, RetCC_URCL32);
+  case URCLSubtarget::WordSize::Word16:
+    return CCInfo.CheckReturn(Outs, RetCC_URCL16);
+  case URCLSubtarget::WordSize::Word8:
+    return CCInfo.CheckReturn(Outs, RetCC_URCL8);
+  }
 }
 
 SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
@@ -421,7 +412,19 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CallConv, IsVarArg, DAG.getMachineFunction(), ArgLocs,
                  *DAG.getContext());
-  CCInfo.AnalyzeCallOperands(Outs, CC_URCL32);
+
+  MVT WordType = Subtarget->getWordType();
+  switch (Subtarget->getWordSize()) {
+  case llvm::URCLSubtarget::WordSize::Word32:
+    CCInfo.AnalyzeCallOperands(Outs, CC_URCL32);
+    break;
+  case llvm::URCLSubtarget::WordSize::Word16:
+    CCInfo.AnalyzeCallOperands(Outs, CC_URCL16);
+    break;
+  case llvm::URCLSubtarget::WordSize::Word8:
+    CCInfo.AnalyzeCallOperands(Outs, CC_URCL8);
+    break;
+  }
 
   IsTailCall = IsTailCall && false; // IsEligibleForTailCallOptimization(CCInfo,
                                     // CLI, DAG.getMachineFunction());
@@ -448,7 +451,7 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     if (Size > 0U) {
       int FI = MFI.CreateStackObject(Size, Alignment, false);
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(DAG.getDataLayout()));
-      SDValue SizeNode = DAG.getConstant(Size, dl, MVT::i32);
+      SDValue SizeNode = DAG.getConstant(Size, dl, WordType);
 
       assert(false);
       Chain = DAG.getMemcpy(Chain, dl, FIPtr, Arg, SizeNode, Alignment,
@@ -519,18 +522,18 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
       assert(false);
       // store SRet argument in %sp+64
-      SDValue StackPtr = DAG.getRegister(URCL::SP, MVT::i32);
-      SDValue PtrOff = DAG.getIntPtrConstant(64, dl);
-      PtrOff = DAG.getNode(ISD::ADD, dl, MVT::i32, StackPtr, PtrOff);
-      assert(false);
-      MemOpChains.push_back(
-          DAG.getStore(Chain, dl, Arg, PtrOff, MachinePointerInfo()));
-      hasStructRetAttr = true;
-      // sret only allowed on first argument
-      assert(Outs[realArgIdx].OrigArgIndex == 0);
-      SRetArgSize =
-          DAG.getDataLayout().getTypeAllocSize(CLI.getArgs()[0].IndirectType);
-      continue;
+      // SDValue StackPtr = DAG.getRegister(URCL::SP, WordType);
+      // SDValue PtrOff = DAG.getIntPtrConstant(64, dl);
+      // PtrOff = DAG.getNode(ISD::ADD, dl, MVT::i32, StackPtr, PtrOff);
+      // assert(false);
+      // MemOpChains.push_back(
+      //     DAG.getStore(Chain, dl, Arg, PtrOff, MachinePointerInfo()));
+      // hasStructRetAttr = true;
+      // // sret only allowed on first argument
+      // assert(Outs[realArgIdx].OrigArgIndex == 0);
+      // SRetArgSize =
+      //     DAG.getDataLayout().getTypeAllocSize(CLI.getArgs()[0].IndirectType);
+      // continue;
     }
 
     if (VA.needsCustom()) {
@@ -546,17 +549,17 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
         RegsToPass.push_back(std::make_pair(VA.getLocReg(), Arg));
         continue;
       }
-      Arg = DAG.getNode(ISD::BITCAST, dl, MVT::i32, Arg);
+      Arg = DAG.getNode(ISD::BITCAST, dl, WordType, Arg);
       RegsToPass.push_back(std::make_pair(VA.getLocReg(), Arg));
       continue;
     }
 
     assert(VA.isMemLoc());
 
-    SDValue StackPtr = DAG.getRegister(URCL::SP, MVT::i32);
+    SDValue StackPtr = DAG.getRegister(URCL::SP, WordType);
     SDValue PtrOff =
         DAG.getIntPtrConstant(VA.getLocMemOffset() + StackOffset, dl);
-    PtrOff = DAG.getNode(ISD::ADD, dl, MVT::i32, StackPtr, PtrOff);
+    PtrOff = DAG.getNode(ISD::ADD, dl, WordType, StackPtr, PtrOff);
     assert(false);
     MemOpChains.push_back(
         DAG.getStore(Chain, dl, Arg, PtrOff, MachinePointerInfo()));
@@ -576,16 +579,16 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   assert(!hasReturnsTwice);
 
   if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee))
-    Callee = DAG.getTargetGlobalAddress(G->getGlobal(), dl, MVT::i32, 0);
+    Callee = DAG.getTargetGlobalAddress(G->getGlobal(), dl, WordType, 0);
   else if (ExternalSymbolSDNode *E = dyn_cast<ExternalSymbolSDNode>(Callee))
-    Callee = DAG.getTargetExternalSymbol(E->getSymbol(), MVT::i32);
+    Callee = DAG.getTargetExternalSymbol(E->getSymbol(), WordType);
 
   SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Glue);
   SmallVector<SDValue, 8> Ops;
   Ops.push_back(Chain);
   Ops.push_back(Callee);
   if (hasStructRetAttr)
-    Ops.push_back(DAG.getTargetConstant(SRetArgSize, dl, MVT::i32));
+    Ops.push_back(DAG.getTargetConstant(SRetArgSize, dl, WordType));
   for (const auto &[OrigReg, N] : RegsToPass) {
     Register Reg = IsTailCall ? OrigReg : (OrigReg);
     Ops.push_back(DAG.getRegister(Reg, N.getValueType()));
@@ -621,7 +624,17 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   CCState RVInfo(CallConv, IsVarArg, DAG.getMachineFunction(), RVLocs,
                  *DAG.getContext());
 
-  RVInfo.AnalyzeCallResult(Ins, RetCC_URCL32);
+  switch (Subtarget->getWordSize()) {
+  case llvm::URCLSubtarget::WordSize::Word32:
+    RVInfo.AnalyzeCallResult(Ins, RetCC_URCL32);
+    break;
+  case llvm::URCLSubtarget::WordSize::Word16:
+    RVInfo.AnalyzeCallResult(Ins, RetCC_URCL16);
+    break;
+  case llvm::URCLSubtarget::WordSize::Word8:
+    RVInfo.AnalyzeCallResult(Ins, RetCC_URCL8);
+    break;
+  }
 
   for (unsigned I = 0; I != RVLocs.size(); ++I) {
     assert(RVLocs[I].isRegLoc() && "Can only return in registers!");
@@ -649,7 +662,18 @@ URCLTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   SmallVector<CCValAssign, 16> RVLocs;
   CCState CCInfo(CallConv, IsVarArg, DAG.getMachineFunction(), RVLocs,
                  *DAG.getContext());
-  CCInfo.AnalyzeReturn(Outs, RetCC_URCL32);
+
+  switch (Subtarget->getWordSize()) {
+  case llvm::URCLSubtarget::WordSize::Word32:
+    CCInfo.AnalyzeReturn(Outs, RetCC_URCL32);
+    break;
+  case llvm::URCLSubtarget::WordSize::Word16:
+    CCInfo.AnalyzeReturn(Outs, RetCC_URCL16);
+    break;
+  case llvm::URCLSubtarget::WordSize::Word8:
+    CCInfo.AnalyzeReturn(Outs, RetCC_URCL8);
+    break;
+  }
 
   SDValue Glue;
   SmallVector<SDValue, 4> RetOps(1, Chain);
@@ -730,11 +754,29 @@ SDValue URCLTargetLowering::LowerFormalArguments(
   URCLMachineFunctionInfo *FuncInfo = MF.getInfo<URCLMachineFunctionInfo>();
   EVT PtrVT = getPointerTy(DAG.getDataLayout());
 
+  MVT WordType = Subtarget->getWordType();
+  auto WordSize = Subtarget->getWordSizeBytes();
+
   // Assign locations to all of the incoming arguments.
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), ArgLocs,
                  *DAG.getContext());
-  CCInfo.AnalyzeFormalArguments(Ins, CC_URCL32);
+  MVT FloatWordType;
+  switch (Subtarget->getWordSize()) {
+  case llvm::URCLSubtarget::WordSize::Word32:
+    CCInfo.AnalyzeFormalArguments(Ins, CC_URCL32);
+    FloatWordType = MVT::f32;
+    break;
+  case llvm::URCLSubtarget::WordSize::Word16:
+    CCInfo.AnalyzeFormalArguments(Ins, CC_URCL16);
+    FloatWordType = MVT::f16;
+    break;
+  case llvm::URCLSubtarget::WordSize::Word8:
+    CCInfo.AnalyzeFormalArguments(Ins, CC_URCL8);
+    // kinda illegal
+    FloatWordType = MVT::f16;
+    break;
+  }
 
   const unsigned StackOffset = 92;
   // bool IsLittleEndian = DAG.getDataLayout().isLittleEndian();
@@ -748,10 +790,10 @@ SDValue URCLTargetLowering::LowerFormalArguments(
       if (InIdx != 0)
         report_fatal_error("URCL only supports sret on the first parameter");
       // Get SRet from [%fp+64].
-      int FrameIdx = MF.getFrameInfo().CreateFixedObject(4, 64, true);
-      SDValue FIPtr = DAG.getFrameIndex(FrameIdx, MVT::i32);
+      int FrameIdx = MF.getFrameInfo().CreateFixedObject(WordSize, 64, true);
+      SDValue FIPtr = DAG.getFrameIndex(FrameIdx, WordType);
       SDValue Arg =
-          DAG.getLoad(MVT::i32, dl, Chain, FIPtr, MachinePointerInfo());
+          DAG.getLoad(WordType, dl, Chain, FIPtr, MachinePointerInfo());
       InVals.push_back(Arg);
       continue;
     }
@@ -793,12 +835,12 @@ SDValue URCLTargetLowering::LowerFormalArguments(
       }
       Register VReg = RegInfo.createVirtualRegister(&URCL::IntRegsRegClass);
       MF.getRegInfo().addLiveIn(VA.getLocReg(), VReg);
-      Arg = DAG.getCopyFromReg(Chain, dl, VReg, MVT::i32);
+      Arg = DAG.getCopyFromReg(Chain, dl, VReg, WordType);
       if (VA.getLocInfo() != CCValAssign::Indirect) {
-        if (VA.getLocVT() == MVT::f32)
-          Arg = DAG.getNode(ISD::BITCAST, dl, MVT::f32, Arg);
+        if (VA.getLocVT() == FloatWordType)
+          Arg = DAG.getNode(ISD::BITCAST, dl, FloatWordType, Arg);
         else if (VA.getLocVT() != MVT::i32) {
-          Arg = DAG.getNode(ISD::AssertSext, dl, MVT::i32, Arg,
+          Arg = DAG.getNode(ISD::AssertSext, dl, WordType, Arg,
                             DAG.getValueType(VA.getLocVT()));
           Arg = DAG.getNode(ISD::TRUNCATE, dl, VA.getLocVT(), Arg);
         }
@@ -909,15 +951,16 @@ SDValue URCLTargetLowering::LowerFormalArguments(
     for (; CurArgReg != ArgRegEnd; ++CurArgReg) {
       Register VReg = RegInfo.createVirtualRegister(&URCL::IntRegsRegClass);
       MF.getRegInfo().addLiveIn(*CurArgReg, VReg);
-      SDValue Arg = DAG.getCopyFromReg(DAG.getRoot(), dl, VReg, MVT::i32);
+      SDValue Arg = DAG.getCopyFromReg(DAG.getRoot(), dl, VReg, WordType);
 
-      int FrameIdx = MF.getFrameInfo().CreateFixedObject(4, ArgOffset, true);
-      SDValue FIPtr = DAG.getFrameIndex(FrameIdx, MVT::i32);
+      int FrameIdx =
+          MF.getFrameInfo().CreateFixedObject(WordSize, ArgOffset, true);
+      SDValue FIPtr = DAG.getFrameIndex(FrameIdx, WordType);
 
       assert(false);
       OutChains.push_back(
           DAG.getStore(DAG.getRoot(), dl, Arg, FIPtr, MachinePointerInfo()));
-      ArgOffset += 4;
+      ArgOffset += WordSize;
     }
 
     if (!OutChains.empty()) {
@@ -935,6 +978,20 @@ SDValue URCLTargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
   SDValue Ptr = LN->getBasePtr();
   EVT MemVT = LN->getMemoryVT();
 
+  MVT WordType = Subtarget->getWordType();
+  uint32_t PtrMask = 0;
+  switch (Subtarget->getWordSize()) {
+  case llvm::URCLSubtarget::WordSize::Word32:
+    PtrMask = 3;
+    break;
+  case llvm::URCLSubtarget::WordSize::Word16:
+    PtrMask = 1;
+    break;
+  case llvm::URCLSubtarget::WordSize::Word8:
+    PtrMask = 0;
+    break;
+  }
+
   if (Ptr.getOpcode() == URCLISD::WORD_ADDR) {
     return SDValue();
   }
@@ -943,29 +1000,29 @@ SDValue URCLTargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
     return SDValue();
   }
 
-  SDValue WordAddr = DAG.getNode(URCLISD::TO_WORD_ADDR, DL, MVT::i32, Ptr);
+  SDValue WordAddr = DAG.getNode(URCLISD::TO_WORD_ADDR, DL, WordType, Ptr);
 
-  SDValue WrappedPtr = DAG.getNode(URCLISD::WORD_ADDR, DL, MVT::i32, WordAddr);
+  SDValue WrappedPtr = DAG.getNode(URCLISD::WORD_ADDR, DL, WordType, WordAddr);
 
   SDValue FullWord =
-      DAG.getLoad(MVT::i32, DL, LN->getChain(), WrappedPtr,
+      DAG.getLoad(WordType, DL, LN->getChain(), WrappedPtr,
                   MachinePointerInfo(LN->getMemOperand()->getValue()));
   SDValue LoadChain = FullWord.getValue(1);
 
-  if (MemVT == MVT::i32)
+  if (MemVT == WordType)
     return DAG.getMergeValues({FullWord, LoadChain}, DL);
 
-  SDValue ByteOffset = DAG.getNode(ISD::AND, DL, MVT::i32, Ptr,
-                                   DAG.getConstant(3, DL, MVT::i32));
+  SDValue ByteOffset = DAG.getNode(ISD::AND, DL, WordType, Ptr,
+                                   DAG.getConstant(PtrMask, DL, WordType));
 
-  SDValue ShiftAmt = DAG.getNode(ISD::SHL, DL, MVT::i32, ByteOffset,
-                                 DAG.getConstant(3, DL, MVT::i32));
+  SDValue ShiftAmt = DAG.getNode(ISD::SHL, DL, WordType, ByteOffset,
+                                 DAG.getConstant(PtrMask, DL, WordType));
 
-  SDValue Shifted = DAG.getNode(ISD::SRL, DL, MVT::i32, FullWord, ShiftAmt);
+  SDValue Shifted = DAG.getNode(ISD::SRL, DL, WordType, FullWord, ShiftAmt);
 
   uint32_t MaskVal = (MemVT == MVT::i8) ? 0xFF : 0xFFFF;
-  SDValue Extracted = DAG.getNode(ISD::AND, DL, MVT::i32, Shifted,
-                                  DAG.getConstant(MaskVal, DL, MVT::i32));
+  SDValue Extracted = DAG.getNode(ISD::AND, DL, WordType, Shifted,
+                                  DAG.getConstant(MaskVal, DL, WordType));
 
   return DAG.getMergeValues({Extracted, LoadChain}, DL);
 }
@@ -977,6 +1034,20 @@ SDValue URCLTargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
   SDValue Value = SN->getValue();
   EVT MemVT = SN->getMemoryVT();
 
+  MVT WordType = Subtarget->getWordType();
+  uint32_t PtrMask = 0;
+  switch (Subtarget->getWordSize()) {
+  case llvm::URCLSubtarget::WordSize::Word32:
+    PtrMask = 3;
+    break;
+  case llvm::URCLSubtarget::WordSize::Word16:
+    PtrMask = 1;
+    break;
+  case llvm::URCLSubtarget::WordSize::Word8:
+    PtrMask = 0;
+    break;
+  }
+
   if (Ptr.getOpcode() == URCLISD::WORD_ADDR) {
     return SDValue();
   }
@@ -985,40 +1056,40 @@ SDValue URCLTargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
     return SDValue();
   }
 
-  SDValue WordAddr = DAG.getNode(URCLISD::TO_WORD_ADDR, DL, MVT::i32, Ptr);
+  SDValue WordAddr = DAG.getNode(URCLISD::TO_WORD_ADDR, DL, WordType, Ptr);
 
-  SDValue WrappedPtr = DAG.getNode(URCLISD::WORD_ADDR, DL, MVT::i32, WordAddr);
+  SDValue WrappedPtr = DAG.getNode(URCLISD::WORD_ADDR, DL, WordType, WordAddr);
 
-  if (MemVT == MVT::i32) {
+  if (MemVT == WordType) {
     return DAG.getStore(SN->getChain(), DL, Value, WrappedPtr,
                         SN->getMemOperand());
   }
 
   SDValue LoadExisting =
-      DAG.getLoad(MVT::i32, DL, SN->getChain(), WrappedPtr,
+      DAG.getLoad(WordType, DL, SN->getChain(), WrappedPtr,
                   MachinePointerInfo(SN->getMemOperand()->getValue()));
 
-  SDValue ByteOffset = DAG.getNode(ISD::AND, DL, MVT::i32, Ptr,
-                                   DAG.getConstant(3, DL, MVT::i32));
-  SDValue ShiftAmt = DAG.getNode(ISD::SHL, DL, MVT::i32, ByteOffset,
-                                 DAG.getConstant(3, DL, MVT::i32));
+  SDValue ByteOffset = DAG.getNode(ISD::AND, DL, WordType, Ptr,
+                                   DAG.getConstant(PtrMask, DL, WordType));
+  SDValue ShiftAmt = DAG.getNode(ISD::SHL, DL, WordType, ByteOffset,
+                                 DAG.getConstant(PtrMask, DL, WordType));
 
   uint32_t MaskVal = (MemVT == MVT::i8) ? 0xFF : 0xFFFF;
-  SDValue MaskedVal = DAG.getNode(ISD::AND, DL, MVT::i32, Value,
-                                  DAG.getConstant(MaskVal, DL, MVT::i32));
+  SDValue MaskedVal = DAG.getNode(ISD::AND, DL, WordType, Value,
+                                  DAG.getConstant(MaskVal, DL, WordType));
 
   SDValue ShiftedNewVal =
-      DAG.getNode(ISD::SHL, DL, MVT::i32, MaskedVal, ShiftAmt);
+      DAG.getNode(ISD::SHL, DL, WordType, MaskedVal, ShiftAmt);
 
   SDValue ClearMask = DAG.getNode(
-      ISD::SHL, DL, MVT::i32, DAG.getConstant(MaskVal, DL, MVT::i32), ShiftAmt);
-  ClearMask = DAG.getNOT(DL, ClearMask, MVT::i32);
+      ISD::SHL, DL, WordType, DAG.getConstant(MaskVal, DL, WordType), ShiftAmt);
+  ClearMask = DAG.getNOT(DL, ClearMask, WordType);
 
   SDValue ClearedOldVal =
-      DAG.getNode(ISD::AND, DL, MVT::i32, LoadExisting, ClearMask);
+      DAG.getNode(ISD::AND, DL, WordType, LoadExisting, ClearMask);
 
   SDValue FinalWord =
-      DAG.getNode(ISD::OR, DL, MVT::i32, ClearedOldVal, ShiftedNewVal);
+      DAG.getNode(ISD::OR, DL, WordType, ClearedOldVal, ShiftedNewVal);
 
   return DAG.getStore(LoadExisting.getValue(1), DL, FinalWord, WrappedPtr,
                       MachinePointerInfo(SN->getMemOperand()->getValue()));
@@ -1069,6 +1140,20 @@ SDValue
 URCLTargetLowering::DagCombineToWordAddrSimplifier(SDNode *N,
                                                    DAGCombinerInfo &DCI) const {
   SelectionDAG &DAG = DCI.DAG;
+  uint32_t PtrMask;
+  uint32_t PtrShiftAmount;
+  switch (Subtarget->getWordSize()) {
+  case llvm::URCLSubtarget::WordSize::Word32:
+    PtrMask = 4;
+    PtrShiftAmount = 2;
+    break;
+  case llvm::URCLSubtarget::WordSize::Word16:
+    PtrMask = 2;
+    PtrShiftAmount = 1;
+    break;
+  case llvm::URCLSubtarget::WordSize::Word8:
+    return SDValue();
+  }
 
   SDValue Op = N->getOperand(0);
   if (Op.getOpcode() == ISD::ADD) {
@@ -1078,27 +1163,31 @@ URCLTargetLowering::DagCombineToWordAddrSimplifier(SDNode *N,
       int64_t Imm = C->getSExtValue();
       // could do it aswell but mostlikely doesnt make sense since we then have
       // mostlikely a unaligned load and want to resuse the lower bits
-      if (Imm % 4 == 0) {
+      if (Imm % PtrMask == 0) {
         SDLoc DL(N);
         EVT VT = N->getValueType(0);
         SDValue NewToWordAddr =
             DAG.getNode(URCLISD::TO_WORD_ADDR, DL, VT, Arg0);
-        int64_t NewImm = Imm / 4;
+        int64_t NewImm = Imm / PtrMask;
         SDValue NewConst = DAG.getSignedConstant(NewImm, DL, VT);
         return DAG.getNode(ISD::ADD, DL, VT, NewToWordAddr, NewConst);
       }
-      // could do it for others aswell but mostlikely doesnt make sense since we
-      // then have mostlikely a unaligned load and want to resuse the lower bits
     } else if (Op->hasOneUse()) {
-      SDLoc DL(N);
-      EVT VT = N->getValueType(0);
-      SDValue NewToWordAddr1 = DAG.getNode(URCLISD::TO_WORD_ADDR, DL, VT, Arg0);
-      SDValue NewToWordAddr2 = DAG.getNode(URCLISD::TO_WORD_ADDR, DL, VT, Arg1);
-      return DAG.getNode(ISD::ADD, DL, VT, NewToWordAddr1, NewToWordAddr2);
+      // TODO: can only do this if we show that the previous values are 4byte
+      // aligned
+
+      // SDLoc DL(N); EVT VT = N->getValueType(0); SDValue
+      // NewToWordAddr1 = DAG.getNode(URCLISD::TO_WORD_ADDR, DL, VT, Arg0);
+      // SDValue NewToWordAddr2 = DAG.getNode(URCLISD::TO_WORD_ADDR, DL, VT,
+      // Arg1); return DAG.getNode(ISD::ADD, DL, VT, NewToWordAddr1,
+      // NewToWordAddr2);
     }
   } else if (Op.getOpcode() == ISD::SHL) {
-    SDValue Arg0 = Op.getOperand(0);
-    return Arg0;
+    auto *ShiftConstant = dyn_cast<ConstantSDNode>(Op->getOperand(1));
+    if (ShiftConstant && ShiftConstant->getZExtValue() == PtrShiftAmount) {
+      SDValue Arg0 = Op.getOperand(0);
+      return Arg0;
+    }
   }
 
   return SDValue();

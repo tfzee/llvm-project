@@ -52,7 +52,7 @@ public:
   bool useSoftFloat() const override { return true; }
 
 public:
-  SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+  SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
   SDValue DagCombineToWordAddrSimplifier(SDNode *N, DAGCombinerInfo &DCI) const;
 };
 } // namespace llvm

@@ -1,6 +1,21 @@
 include "llvm/Target/Target.td"
 include "llvm/TableGen/SearchableTable.td"
 
+
+def FeatureSoftFloat : SubtargetFeature<"soft-float", "UseSoftFloat", "true",
+                              "Use software emulation for floating point">;
+
+def IsURCL8  : Predicate<"Subtarget->getTargetTriple().getArch() == Triple::urcl8">;
+def IsURCL16 : Predicate<"Subtarget->getTargetTriple().getArch() == Triple::urcl16">;
+def IsURCL32 : Predicate<"Subtarget->getTargetTriple().getArch() == Triple::urcl32">;
+
+defvar URCL32 = DefaultMode;
+def URCL16 : HwMode<[IsURCL16]>;
+def URCL8 : HwMode<[IsURCL8]>;
+
+
+
+
 //===----------------------------------------------------------------------===//
 // Register File, Calling Conv, Instruction Descriptions
 //===----------------------------------------------------------------------===//
@@ -33,8 +48,6 @@ class Proc<string Name, list<SubtargetFeature> Features,
  : Processor<Name, NoItineraries, Features, TuneFeatures>;
 
 
-def FeatureSoftFloat : SubtargetFeature<"soft-float", "UseSoftFloat", "true",
-                              "Use software emulation for floating point">;
                            
 def : Proc<"generic",         [FeatureSoftFloat]>;
 

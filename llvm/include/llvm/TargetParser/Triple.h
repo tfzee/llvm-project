@@ -80,7 +80,9 @@ public:
     riscv32be,   // RISC-V (32-bit, big endian): riscv32be
     riscv64be,   // RISC-V (64-bit, big endian): riscv64be
     sparc,       // Sparc: sparc
-    urcl,        // URCL: urcl
+    urcl8,        // URCL: urcl
+    urcl16,        // URCL: urcl
+    urcl32,        // URCL: urcl
     sparcv9,     // Sparcv9: Sparcv9
     sparcel,     // Sparc: (endianness = little). NB: 'Sparcle' is a CPU variant
     systemz,     // SystemZ: s390x
@@ -1101,6 +1103,10 @@ public:
 
   /// Tests whether the target is 64-bit SPARC (big endian).
   bool isSPARC64() const { return getArch() == Triple::sparcv9; }
+
+  bool isURCL32() const { return getArch() == Triple::urcl32; }
+  bool isURCL16() const { return getArch() == Triple::urcl16; }
+  bool isURCL8() const { return getArch() == Triple::urcl8; }
 
   /// Tests whether the target is SPARC.
   bool isSPARC() const { return isSPARC32() || isSPARC64(); }

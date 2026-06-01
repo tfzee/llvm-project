@@ -60,35 +60,35 @@ struct URCLCleanup : public MachineFunctionPass {
         }
         // common pattern of (SP << 2 >> 2) since SP 32bit aligned we can
         // elimniate it
-        if (MI.getOpcode() == URCL::BSLri && MI.getOperand(0).isReg() &&
-            MI.getOperand(1).isReg() && MI.getOperand(1).getReg() == URCL::SP &&
-            MI.getOperand(2).isImm() && MI.getOperand(2).getImm() == 2) {
-          Register ShiftedReg = MI.getOperand(0).getReg();
-          if (ShiftedReg == URCL::SP)
-            continue;
-          // find the matching right shift
-          MachineBasicBlock::iterator NextNI = std::next(MI.getIterator());
-          if (NextNI != MBB.end() && NextNI->getOpcode() == URCL::BSRri) {
-            MachineInstr &NextMI = *NextNI;
-            // match the right shift
-            if (NextMI.getOperand(1).isReg() &&
-                NextMI.getOperand(1).getReg() == ShiftedReg &&
-                NextMI.getOperand(2).isImm() &&
-                NextMI.getOperand(2).getImm() == 2) {
-              Register FinalDestReg = NextMI.getOperand(0).getReg();
-              if (FinalDestReg != URCL::SP) {
-                BuildMI(MBB, MI, MI.getDebugLoc(), TII->get(URCL::MOVrr))
-                    .addReg(FinalDestReg, RegState::Define)
-                    .addReg(URCL::SP);
-              }
-              NextMI.eraseFromParent();
-              MI.eraseFromParent();
+        // if (MI.getOpcode() == URCL::BSLri && MI.getOperand(0).isReg() &&
+        //     MI.getOperand(1).isReg() && MI.getOperand(1).getReg() == URCL::SP
+        //     && MI.getOperand(2).isImm() && MI.getOperand(2).getImm() == 2) {
+        //   Register ShiftedReg = MI.getOperand(0).getReg();
+        //   if (ShiftedReg == URCL::SP)
+        //     continue;
+        //   // find the matching right shift
+        //   MachineBasicBlock::iterator NextNI = std::next(MI.getIterator());
+        //   if (NextNI != MBB.end() && NextNI->getOpcode() == URCL::BSRri) {
+        //     MachineInstr &NextMI = *NextNI;
+        //     // match the right shift
+        //     if (NextMI.getOperand(1).isReg() &&
+        //         NextMI.getOperand(1).getReg() == ShiftedReg &&
+        //         NextMI.getOperand(2).isImm() &&
+        //         NextMI.getOperand(2).getImm() == 2) {
+        //       Register FinalDestReg = NextMI.getOperand(0).getReg();
+        //       if (FinalDestReg != URCL::SP) {
+        //         BuildMI(MBB, MI, MI.getDebugLoc(), TII->get(URCL::MOVrr))
+        //             .addReg(FinalDestReg, RegState::Define)
+        //             .addReg(URCL::SP);
+        //       }
+        //       NextMI.eraseFromParent();
+        //       MI.eraseFromParent();
 
-              Changed = true;
-              continue;
-            }
-          }
-        }
+        //       Changed = true;
+        //       continue;
+        //     }
+        //   }
+        // }
       }
     }
     return Changed;

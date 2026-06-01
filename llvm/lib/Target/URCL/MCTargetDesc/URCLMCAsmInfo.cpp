@@ -32,12 +32,9 @@ URCLELFMCAsmInfo::URCLELFMCAsmInfo(const Triple &TheTriple,
   CommentString = "//";
   HasIdentDirective = false;
 
-  Data8bitsDirective = nullptr;//"\tdb\t";
-  Data16bitsDirective = nullptr;//"\tdh\t";
+  Data8bitsDirective = "\tdw\t";
+  Data16bitsDirective = "\tdw\t";
   Data32bitsDirective = "\tdw\t";
-  AsciiDirective = nullptr; //"dw\t";
-  AscizDirective = nullptr; //"dw\t";
-  Data64bitsDirective = nullptr;
   ZeroDirective = "\t.skip\t";
   GlobalDirective = "\t.global\t."; 
   LabelSuffix = "";

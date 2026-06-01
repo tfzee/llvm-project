@@ -505,7 +505,9 @@ std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
       return std::make_unique<RISCV64TargetInfo>(Triple, Opts);
     }
 
-  case llvm::Triple::urcl:
+  case llvm::Triple::urcl8:
+  case llvm::Triple::urcl16:
+  case llvm::Triple::urcl32:
       return std::make_unique<URCLTargetInfo>(Triple, Opts);
   case llvm::Triple::sparc:
     switch (os) {

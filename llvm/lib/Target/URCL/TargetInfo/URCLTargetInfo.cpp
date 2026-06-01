@@ -11,13 +11,27 @@
 #include "llvm/Support/Compiler.h"
 using namespace llvm;
 
-Target &llvm::getTheURCLTarget() {
+Target &llvm::getTheURCL8Target() {
+  static Target TheURCLTarget;
+  return TheURCLTarget;
+}
+
+Target &llvm::getTheURCL16Target() {
+  static Target TheURCLTarget;
+  return TheURCLTarget;
+}
+
+Target &llvm::getTheURCL32Target() {
   static Target TheURCLTarget;
   return TheURCLTarget;
 }
 
 extern "C" LLVM_ABI LLVM_EXTERNAL_VISIBILITY void
 LLVMInitializeURCLTargetInfo() {
-  RegisterTarget<Triple::urcl, /*HasJIT=*/false> X(getTheURCLTarget(), "urcl",
-                                                    "URCL", "URCL");
+  RegisterTarget<Triple::urcl8, /*HasJIT=*/false> X(getTheURCL8Target(), "urcl8",
+                                                    "URCL8", "URCL8");
+  RegisterTarget<Triple::urcl16, /*HasJIT=*/false> Y(getTheURCL16Target(), "urcl16",
+                                                    "URCL16", "URCL16");
+  RegisterTarget<Triple::urcl32, /*HasJIT=*/false> Z(getTheURCL32Target(), "urcl32",
+                                                    "URCL32", "URCL32");
 }

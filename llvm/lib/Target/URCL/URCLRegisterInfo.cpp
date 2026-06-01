@@ -21,6 +21,7 @@
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
@@ -68,6 +69,8 @@ bool URCLRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MachineFrameInfo &MFI = MF.getFrameInfo();
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
+  const URCLSubtarget &Subtarget = MF.getSubtarget<URCLSubtarget>();
+  const uint32_t Align = Subtarget.getWordSizeBytes();
 
   DebugLoc DL = MI.getDebugLoc();
   MachineBasicBlock &MBB = *MI.getParent();
@@ -86,9 +89,9 @@ bool URCLRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     auto OldImm = MI.getOperand(FIOperandNum + 1).getImm();
     auto StackSize = MFI.getStackSize();
     assert(OldImm == 0);
-    assert(ObjOff % 4 == 0);
-    assert(StackSize % 4 == 0);
-    int Offset = (ObjOff / 4) + (StackSize / 4) + OldImm;
+    assert(ObjOff % Align == 0);
+    assert(StackSize % Align == 0);
+    int Offset = (ObjOff / Align) + (StackSize / Align) + OldImm;
     MI.getOperand(FIOperandNum).ChangeToRegister(FrameReg, false);
     MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
     return false;
@@ -103,20 +106,20 @@ bool URCLRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   }
   bool IsFrameRegKilled = MI.killsRegister(FrameReg, &TRI);
 
-  if (Offset % 4 == 0 && Offset != 0) {
+  if (Offset % Align == 0 && Offset != 0 && Align > 1) {
     // if we can do the offset on word level then delay the shift till after
     BuildMI(MBB, II, DL, TII.get(URCL::ADDri), FinalReg)
         .addReg(FrameReg, getKillRegState(IsFrameRegKilled))
-        .addImm(Offset / 4);
+        .addImm(Offset / Align);
 
     BuildMI(MBB, II, DL, TII.get(URCL::BSLri), FinalReg)
         .addReg(FinalReg, RegState::Kill)
-        .addImm(2);
+        .addImm(Align / 2);
 
-  } else {
+  } else if (Align > 1) {
     BuildMI(MBB, II, DL, TII.get(URCL::BSLri), FinalReg)
         .addReg(FrameReg, getKillRegState(IsFrameRegKilled))
-        .addImm(2);
+        .addImm(Align / 2);
 
     if (Offset != 0) {
       BuildMI(MBB, II, DL, TII.get(URCL::ADDri), FinalReg)

@@ -16,7 +16,9 @@ using namespace llvm;
 
 extern "C" LLVM_ABI LLVM_EXTERNAL_VISIBILITY void LLVMInitializeURCLTarget() {
   // Register the target.
-  RegisterTargetMachine<URCLTargetMachine> X(getTheURCLTarget());
+  RegisterTargetMachine<URCLTargetMachine> X(getTheURCL8Target());
+  RegisterTargetMachine<URCLTargetMachine> Y(getTheURCL16Target());
+  RegisterTargetMachine<URCLTargetMachine> Z(getTheURCL32Target());
 
   PassRegistry &PR = *PassRegistry::getPassRegistry();
   initializeURCLAsmPrinterPass(PR);

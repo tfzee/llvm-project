@@ -13,6 +13,7 @@
 #include "URCL.h"
 #include "Targets.h"
 #include "clang/Basic/MacroBuilder.h"
+#include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/StringSwitch.h"
 
 using namespace clang;
@@ -35,8 +36,7 @@ const TargetInfo::GCCRegAlias URCLTargetInfo::GCCRegAliases[] = {
     {{"r4"}, "r4"},   {{"r5"}, "r5"},   {{"r6"}, "r6"},   {{"r7"}, "r7"},
     {{"r8"}, "r8"},   {{"r9"}, "r9"},   {{"r10"}, "r10"}, {{"r11"}, "r11"},
     {{"r12"}, "r12"}, {{"r13"}, "r13"}, {{"r14"}, "r14"}, {{"r15"}, "r15"},
-    {{"r16"}, "r16"}, {{"SP"}, "SP"}
-};
+    {{"r16"}, "r16"}, {{"SP"}, "SP"}};
 
 ArrayRef<TargetInfo::GCCRegAlias> URCLTargetInfo::getGCCRegAliases() const {
   return llvm::ArrayRef(GCCRegAliases);
@@ -51,17 +51,43 @@ bool URCLTargetInfo::hasFeature(StringRef Feature) const {
 
 // struct URCLCPUInfo {
 //   llvm::StringLiteral Name;
+//   URCLTargetInfo::CPUKind kind;
 // };
 
 // static constexpr URCLCPUInfo CPUInfo[] = {
-//     {{"URCL_32"}},
+//     {"URCL_8", URCLTargetInfo::CPUKind::CK_GENERIC8},
+//     {"URCL_16", URCLTargetInfo::CPUKind::CK_GENERIC16},
+//     {"URCL_32", URCLTargetInfo::CPUKind::CK_GENERIC32},
 // };
 
+// void URCLTargetInfo::fillValidCPUList(
+//     SmallVectorImpl<StringRef> &Values) const {
+//   for (const URCLCPUInfo &Info : CPUInfo)
+//     Values.push_back(Info.Name);
+// }
+
+// URCLTargetInfo::CPUKind URCLTargetInfo::getCPUKind(StringRef Name) const {
+//   const URCLCPUInfo *Item = llvm::find_if(
+//       CPUInfo, [Name](const URCLCPUInfo &Info) { return Info.Name == Name; });
+
+//   if (Item == std::end(CPUInfo))
+//     return CK_GENERIC32;
+//   return Item->kind;
+// }
 
 void URCLTargetInfo::getTargetDefines(const LangOptions &Opts,
                                       MacroBuilder &Builder) const {
   DefineStd(Builder, "URCL", Opts);
+  
   if (SoftFloat)
     Builder.defineMacro("SOFT_FLOAT", "1");
+  if(getTriple().isURCL32()){
+    Builder.defineMacro("__URCL_BITWIDTH__", "32"); 
+  }
+  if(getTriple().isURCL16()){
+    Builder.defineMacro("__URCL_BITWIDTH__", "16"); 
+  }
+  if(getTriple().isURCL8()){
+    Builder.defineMacro("__URCL_BITWIDTH__", "8"); 
+  }
 }
-

@@ -100,9 +100,11 @@ static MCInstPrinter *createURCLMCInstPrinter(const Triple &T,
 
 extern "C" LLVM_ABI LLVM_EXTERNAL_VISIBILITY void LLVMInitializeURCLTargetMC() {
   // Register the MC asm info.
-  RegisterMCAsmInfoFn X(getTheURCLTarget(), createURCLMCAsmInfo);
+  RegisterMCAsmInfoFn X(getTheURCL8Target(), createURCLMCAsmInfo);
+  RegisterMCAsmInfoFn Y(getTheURCL16Target(), createURCLMCAsmInfo);
+  RegisterMCAsmInfoFn Z(getTheURCL32Target(), createURCLMCAsmInfo);
 
-  for (Target *T : {&getTheURCLTarget()}) {
+  for (Target *T : {&getTheURCL8Target(), &getTheURCL16Target(), &getTheURCL32Target()}) {
     // Register the MC instruction info.
     TargetRegistry::RegisterMCInstrInfo(*T, createURCLMCInstrInfo);
 

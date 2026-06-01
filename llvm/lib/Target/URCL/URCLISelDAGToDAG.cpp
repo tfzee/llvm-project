@@ -15,6 +15,7 @@
 #include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
+#include "llvm/Frontend/OpenMP/ConstructDecompositionT.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -80,7 +81,9 @@ bool URCLDAGToDAGISel::selectLoadStackSlotSimplifier(SDNode *N) {
       return false;
     }
     SDLoc DL(N);
-    SDValue Ops[] = {Address, CurDAG->getTargetConstant(0, DL, MVT::i32),
+    MVT WordType = Subtarget->getWordType();
+
+    SDValue Ops[] = {Address, CurDAG->getTargetConstant(0, DL, WordType),
                      ST->getChain()};
     CurDAG->SelectNodeTo(N, URCL::LLOD_ri, ST->getValueType(0), MVT::Other,
                          Ops);
@@ -96,7 +99,8 @@ bool URCLDAGToDAGISel::selectStoreStackSlotSimplifier(SDNode *N) {
       return false;
     }
     SDLoc DL(N);
-    SDValue Ops[] = {Address, CurDAG->getTargetConstant(0, DL, MVT::i32),
+    MVT WordType = Subtarget->getWordType();
+    SDValue Ops[] = {Address, CurDAG->getTargetConstant(0, DL, WordType),
                      ST->getValue(), ST->getChain()};
     CurDAG->SelectNodeTo(N, URCL::LSTR_ri, MVT::Other, Ops);
     return true;

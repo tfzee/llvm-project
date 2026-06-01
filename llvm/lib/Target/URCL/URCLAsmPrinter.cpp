@@ -144,6 +144,7 @@ void URCLAsmPrinter::emitGlobalVariable(const GlobalVariable *GV) {
   OutStreamer->emitLabel(Sym);
 
   const DataLayout &DL = GV->getParent()->getDataLayout();
+  unsigned WordSize = DL.getPointerSize();
 
   std::vector<uint8_t> Buffer;
   std::map<unsigned, const Constant *> Relocs;
@@ -151,20 +152,20 @@ void URCLAsmPrinter::emitGlobalVariable(const GlobalVariable *GV) {
   flattenConstant(GV->getInitializer(), DL, 0, Buffer, Relocs);
 
   // padd end
-  if (Buffer.size() % 4 != 0) {
-    Buffer.resize((Buffer.size() + 3) & ~3, 0);
+  if (Buffer.size() % WordSize != 0) {
+    size_t AlignedSize = (Buffer.size() + (WordSize - 1)) & ~(WordSize - 1);
+    Buffer.resize(AlignedSize, 0);
   }
 
-  // emit as 32-bit Words
-  for (unsigned I = 0; I < Buffer.size(); I += 4) {
+  for (unsigned I = 0; I < Buffer.size(); I += WordSize) {
     bool EmittedReloc = false;
     for (auto const &[RelocOffset, Val] : Relocs) {
-      if (RelocOffset >= I && RelocOffset < I + 4) {
-        const GlobalValue *GV = dyn_cast<GlobalValue>(Val);
-        if (GV && GlobalOffsets.count(dyn_cast<GlobalVariable>(GV))) {
-          uint64_t ByteAddr = GlobalOffsets[dyn_cast<GlobalVariable>(GV)];
-          assert(ByteAddr % 4 == 0);
-          OutStreamer->emitIntValue(ByteAddr / 4, 4);
+      if (RelocOffset >= I && RelocOffset < I + WordSize) {
+        const GlobalValue *GVReloc = dyn_cast<GlobalValue>(Val);
+        if (GVReloc && GlobalOffsets.count(dyn_cast<GlobalVariable>(GVReloc))) {
+          uint64_t ByteAddr = GlobalOffsets[dyn_cast<GlobalVariable>(GVReloc)];
+          assert(ByteAddr % WordSize == 0);
+          OutStreamer->emitIntValue(ByteAddr / WordSize, WordSize);
         } else {
           emitGlobalConstant(DL, Val);
         }
@@ -175,11 +176,12 @@ void URCLAsmPrinter::emitGlobalVariable(const GlobalVariable *GV) {
     }
 
     if (!EmittedReloc) {
-      uint32_t Word = (uint32_t)Buffer[I] | ((uint32_t)Buffer[I + 1] << 8) |
-                      ((uint32_t)Buffer[I + 2] << 16) |
-                      ((uint32_t)Buffer[I + 3] << 24);
+      uint64_t Word = 0;
+      for (unsigned J = 0; J < WordSize; ++J) {
+        Word |= static_cast<uint64_t>(Buffer[I + J]) << (J * 8);
+      }
 
-      OutStreamer->emitIntValue(Word, 4);
+      OutStreamer->emitIntValue(Word, WordSize);
     }
   }
 
@@ -359,5 +361,7 @@ INITIALIZE_PASS(URCLAsmPrinter, "urcl-asm-printer", "URCL Assembly Printer",
 
 extern "C" LLVM_ABI LLVM_EXTERNAL_VISIBILITY void
 LLVMInitializeURCLAsmPrinter() {
-  RegisterAsmPrinter<URCLAsmPrinter> X(getTheURCLTarget());
+  RegisterAsmPrinter<URCLAsmPrinter> X(getTheURCL8Target());
+  RegisterAsmPrinter<URCLAsmPrinter> Y(getTheURCL16Target());
+  RegisterAsmPrinter<URCLAsmPrinter> Z(getTheURCL32Target());
 }

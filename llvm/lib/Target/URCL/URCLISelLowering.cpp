@@ -260,6 +260,8 @@ URCLTargetLowering::URCLTargetLowering(const TargetMachine &TM,
   // Expands to [SU]MUL_LOHI.
   setOperationAction(ISD::MULHU, WordType, Legal);
   setOperationAction(ISD::MULHS, WordType, Legal);
+  setOperationAction(ISD::UMUL_LOHI, WordType, Expand);
+  setOperationAction(ISD::SMUL_LOHI, WordType, Expand);
   setOperationAction(ISD::MUL, WordType, Legal);
 
   // VASTART needs to be custom lowered to use the VarArgsFrameIndex.
@@ -1115,8 +1117,20 @@ SDValue URCLTargetLowering::LowerSELECT(SDValue Op, SelectionDAG &DAG) const {
 
   // Because of ZeroOrNegativeOneBooleanContent, it should always be -1 or 0
   SDValue Mask = Cond;
+  SDValue AllOnes;
 
-  SDValue AllOnes = DAG.getConstant(bit_cast<uint32_t>((int32_t)-1), DL, VT);
+  switch (Subtarget->getWordSize()) {
+  case llvm::URCLSubtarget::WordSize::Word32:
+    AllOnes = DAG.getConstant(bit_cast<uint32_t>((int32_t)-1), DL, VT);
+    break;
+  case llvm::URCLSubtarget::WordSize::Word16:
+    AllOnes = DAG.getConstant(bit_cast<uint16_t>((int16_t)-1), DL, VT);
+    break;
+  case llvm::URCLSubtarget::WordSize::Word8:
+    AllOnes = DAG.getConstant(bit_cast<uint8_t>((int8_t)-1), DL, VT);
+    break;
+  }
+
   SDValue NotMask = DAG.getNode(ISD::XOR, DL, VT, Mask, AllOnes);
 
   SDValue TruePart = DAG.getNode(ISD::AND, DL, VT, TrueV, Mask);

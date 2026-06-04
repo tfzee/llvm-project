@@ -378,6 +378,15 @@ let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
 defm SETE  : SET_CC<"sete",  SETEQ, IntRegs, DynamicRegType, simm_genericOp>;
 defm SETNE : SET_CC<"setne", SETNE, IntRegs, DynamicRegType, simm_genericOp>;
 
+defm SSETGE : SET_CC<"ssetge", SETGE, IntRegs, DynamicRegType, simm_genericOp>;
+defm SSETG : SET_CC<"ssetg", SETGT, IntRegs, DynamicRegType, simm_genericOp>;
+defm SSETLE : SET_CC<"ssetle", SETLE, IntRegs, DynamicRegType, simm_genericOp>;
+defm SSETL : SET_CC<"ssetl", SETLT, IntRegs, DynamicRegType, simm_genericOp>;
+defm SETGE : SET_CC<"setge", SETUGE, IntRegs, DynamicRegType, simm_genericOp>;
+defm SETG : SET_CC<"setg", SETUGT, IntRegs, DynamicRegType, simm_genericOp>;
+defm SETLE : SET_CC<"setle", SETULE, IntRegs, DynamicRegType, simm_genericOp>;
+defm SETL : SET_CC<"setl", SETULT, IntRegs, DynamicRegType, simm_genericOp>;
+
 
 let isReturn = 1, isTerminator = 1, isBarrier = 1, 
     Uses = [SP], Defs = [SP] in {

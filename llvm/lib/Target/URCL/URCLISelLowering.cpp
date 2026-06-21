@@ -455,7 +455,6 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(DAG.getDataLayout()));
       SDValue SizeNode = DAG.getConstant(Size, dl, WordType);
 
-      assert(false);
       Chain = DAG.getMemcpy(Chain, dl, FIPtr, Arg, SizeNode, Alignment,
                             false,        // isVolatile,
                             (Size <= 32), // AlwaysInline if size <= 32,
@@ -562,7 +561,6 @@ SDValue URCLTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     SDValue PtrOff =
         DAG.getIntPtrConstant(VA.getLocMemOffset() + StackOffset, dl);
     PtrOff = DAG.getNode(ISD::ADD, dl, WordType, StackPtr, PtrOff);
-    assert(false);
     MemOpChains.push_back(
         DAG.getStore(Chain, dl, Arg, PtrOff, MachinePointerInfo()));
   }

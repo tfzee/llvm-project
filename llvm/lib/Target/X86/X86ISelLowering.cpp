@@ -62655,8 +62655,22 @@ static SDValue combineFP_EXTEND(SDNode *N, SelectionDAG &DAG,
         !IsStrict && Src.getOperand(0).getValueType() == VT)
       return Src.getOperand(0);
 
-    if (!SrcVT.isVector())
-      return SDValue();
+    if (!SrcVT.isVector()) {
+      if (IsStrict || Subtarget.useSoftFloat() || !Subtarget.hasSSE2())
+        return SDValue();
+
+      SDValue V = DAG.getNode(ISD::SCALAR_TO_VECTOR, dl, MVT::v8f16,
+                              DAG.getBitcast(MVT::f16, Src));
+      V = DAG.getNode(ISD::SHL, dl, MVT::v4i32, DAG.getBitcast(MVT::v4i32, V),
+                      DAG.getConstant(16, dl, MVT::v4i32));
+      SDValue Res = DAG.getExtractVectorElt(
+          dl, MVT::f32, DAG.getBitcast(MVT::v4f32, V), 0);
+
+      // bf16 -> f32 is exact, so from f32 we can cheaply extend any further.
+      if (VT != MVT::f32)
+        Res = DAG.getNode(ISD::FP_EXTEND, dl, VT, Res);
+      return Res;
+    }
 
     assert(!IsStrict && "Strict FP doesn't support BF16");
     if (VT.getVectorElementType() == MVT::f64) {

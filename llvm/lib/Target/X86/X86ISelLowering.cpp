@@ -48684,10 +48684,7 @@ static SDValue combineSelect(SDNode *N, SelectionDAG &DAG,
   // Soft bf16/f16 scalar selects: do a VSELECT in vector registers instead
   // of a scalar CMOV, to avoid a GPR round-trip. Skip constant operands
   // (cheaper as immediates) and compare-driven conds (CMOV already reuses
-  // the flags). bf16 has no register class, so it can only appear as a
-  // BITCAST operand (the one case the type legalizer's soft-promotion
-  // knows how to handle) -- bitcast to f16 (always legal) before building
-  // any vector node, never leave a bare scalar bf16 as an operand.
+  // the flags). Use f16 since bf16 not a legal register type.
   if (N->getOpcode() == ISD::SELECT && !CondVT.isVector() &&
       Subtarget.hasSSE2() && !isIntOrFPConstant(LHS) &&
       !isIntOrFPConstant(RHS)) {
@@ -48716,9 +48713,9 @@ static SDValue combineSelect(SDNode *N, SelectionDAG &DAG,
       }
     }
     if (F16LHS) {
-      // Blend in v8i16 (not v8f16): there's no VBLENDVPH, so a v8f16
+      // Current blend in v8i16 (not v8f16) sincea v8f16
       // VSELECT can fail to select on subtargets that fall back to
-      // BLENDV instead of a mask-register select.
+      // BLENDV(since there's no VBLENDVPH) instead of a mask-register select.
       SDValue Mask = DAG.getNode(ISD::SUB, DL, MVT::i16,
                                  DAG.getConstant(0, DL, MVT::i16),
                                  DAG.getZExtOrTrunc(Cond, DL, MVT::i16));

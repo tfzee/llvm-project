@@ -2627,6 +2627,10 @@ X86TargetLowering::X86TargetLowering(const X86TargetMachine &TM,
 
     setOperationAction(ISD::FROUNDEVEN, MVT::bf16, Custom);
 
+    // Scalar bf16 compares can use VCOMISBF16, but only when denormal inputs
+    // are already flushed; LowerSETCC bails out to the f32 promotion otherwise.
+    setOperationAction(ISD::SETCC, MVT::bf16, Custom);
+
     if (Subtarget.useAVX512Regs()) {
       setOperationAction(ISD::FADD, MVT::v32bf16, Legal);
       setOperationAction(ISD::FSUB, MVT::v32bf16, Legal);
@@ -13123,6 +13127,26 @@ template<typename T>
 static bool isBF16orSoftF16(T VT, const X86Subtarget &Subtarget) {
   T EltVT = VT.getScalarType();
   return EltVT == MVT::bf16 || (EltVT == MVT::f16 && !Subtarget.hasFP16());
+}
+
+/// AVX10.2's BF16 operations often treat denormal inputs
+/// as zero and there is no way to turn that off.
+static bool hasFlushedBF16Denormals(const SelectionDAG &DAG) {
+  return DAG.getMachineFunction()
+      .getFunction()
+      .getDenormalMode(APFloat::BFloat())
+      .inputsAreZero();
+}
+
+/// Place a scalar bf16 value in the low lane of a v8bf16 vector, so that it can
+/// be fed to one of the packed BF16 instructions. bf16 is a soft-promoted type,
+/// so this has to go through f16 to avoid re-entering the promotion.
+static SDValue widenBF16ToVector(SDValue Op, const SDLoc &DL,
+                                 SelectionDAG &DAG) {
+  assert(Op.getValueType() == MVT::bf16 && "Expected a scalar bf16 value");
+  SDValue AsF16 = DAG.getBitcast(MVT::f16, Op);
+  return DAG.getBitcast(
+      MVT::v8bf16, DAG.getNode(ISD::SCALAR_TO_VECTOR, DL, MVT::v8f16, AsF16));
 }
 
 /// Try to lower insertion of a single element into a zero vector.
@@ -25313,6 +25337,37 @@ SDValue X86TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
   if (isSoftF16(Op0.getValueType(), Subtarget))
     return SDValue();
 
+  // AVX10.2's only bf16 compare is VCOMISBF16, which reads its operands out of
+  // the low lane of an xmm register, so widen both of them instead of promoting
+  // the compare to f32.
+  if (Op0.getSimpleValueType() == MVT::bf16) {
+    // VCOMISBF16 always flushes denormal inputs to zero, and it never raises an
+    // FP exception. Neither matches the f32 promotion, so leave that in place
+    // for strict compares and whenever denormal inputs may reach us.
+    if (IsStrict || !hasFlushedBF16Denormals(DAG))
+      return SDValue();
+
+    X86::CondCode CondCode =
+        TranslateX86CC(CC, dl, /*IsFP*/ true, Op0, Op1, DAG);
+    SDValue EFLAGS = DAG.getNode(X86ISD::UCOMI, dl, MVT::i32,
+                                 widenBF16ToVector(Op0, dl, DAG),
+                                 widenBF16ToVector(Op1, dl, DAG));
+    if (CondCode != X86::COND_INVALID)
+      return getSETCC(CondCode, EFLAGS, dl, DAG);
+
+    // SETOEQ and SETUNE each need two tests of the one compare's flags. Note
+    // that bf16 has no VCOMXBF16 equivalent to fold them back together.
+    assert((CC == ISD::SETOEQ || CC == ISD::SETUNE) &&
+           "Unexpected invalid condition code");
+    bool IsOEQ = CC == ISD::SETOEQ;
+    // SETOEQ is (ZF = 1 and PF = 0), SETUNE is (ZF = 0 or PF = 1).
+    SDValue Cmp0 =
+        getSETCC(IsOEQ ? X86::COND_E : X86::COND_NE, EFLAGS, dl, DAG);
+    SDValue Cmp1 =
+        getSETCC(IsOEQ ? X86::COND_NP : X86::COND_P, EFLAGS, dl, DAG);
+    return DAG.getNode(IsOEQ ? ISD::AND : ISD::OR, dl, MVT::i8, Cmp0, Cmp1);
+  }
+
   // Handle f128 first, since one possible outcome is a normal integer
   // comparison which gets handled by emitFlagsForSetcc.
   if (Op0.getValueType() == MVT::f128) {
@@ -34984,12 +35039,8 @@ void X86TargetLowering::ReplaceNodeResults(SDNode *N,
     // promoted to f32. Instead widen each operand to a v8bf16 vector, perform
     // the legal packed operation, and extract the low element afterwards.
     SmallVector<SDValue, 3> VecOps;
-    for (const SDValue &Op : N->ops()) {
-      SDValue AsF16 = DAG.getBitcast(MVT::f16, Op);
-      SDValue VecF16 =
-          DAG.getNode(ISD::SCALAR_TO_VECTOR, dl, MVT::v8f16, AsF16);
-      VecOps.push_back(DAG.getBitcast(MVT::v8bf16, VecF16));
-    }
+    for (const SDValue &Op : N->ops())
+      VecOps.push_back(widenBF16ToVector(Op, dl, DAG));
     SDValue Vec =
         DAG.getNode(N->getOpcode(), dl, MVT::v8bf16, VecOps, N->getFlags());
     Results.push_back(DAG.getExtractVectorElt(dl, MVT::bf16, Vec, 0));

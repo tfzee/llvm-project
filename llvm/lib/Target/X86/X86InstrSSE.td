@@ -1960,7 +1960,8 @@ multiclass sse12_ord_cmp<bits<8> opc, RegisterClass RC, SDPatternOperator OpNode
 }
 
 // sse12_ord_cmp_int - Intrinsic version of sse12_ord_cmp
-multiclass sse12_ord_cmp_int<bits<8> opc, RegisterClass RC, SDNode OpNode,
+multiclass sse12_ord_cmp_int<bits<8> opc, RegisterClass RC,
+                             SDPatternOperator OpNode,
                              ValueType vt, Operand memop,
                              PatFrags mem_frags, string OpcodeStr,
                              Domain d,

@@ -1007,17 +1007,26 @@ defm VMAXBF16 : avx10_fp_binop_bf16<0x5F, "vmax", pseudo_fmax, SchedWriteFCmpSiz
 }
 
 // VCOMISBF16
+// VCOMISBF16 raises no floating-point exceptions at all -- it is quiet for both
+// QNaN and SNaN inputs -- so the same instruction implements both the signalling
+// compare node (X86comi, reached from the llvm.x86.avx10.vcomisbf16* intrinsics)
+// and the quiet one (X86ucomi, reached from a plain `fcmp bfloat`).
+def X86any_comi_bf16 : PatFrags<(ops node:$lhs, node:$rhs),
+                                [(X86comi node:$lhs, node:$rhs),
+                                 (X86ucomi node:$lhs, node:$rhs)]>;
+
 let Uses = []<Register>, mayRaiseFPException = 0,
   Defs = [EFLAGS], Predicates = [HasAVX10_2] in {
-  //TODO: Replace null_frag with X86fcmp to support lowering `fcmp oeq bfloat *`
-  //which may require extend supports on BFR16X, loadbf16, ...
+  // Scalar bf16 `fcmp` is matched through the v8bf16 form below, which the
+  // AVX10.2 lowering produces by dropping the value into the low lane of an xmm.
   defm VCOMISBF16Z : sse12_ord_cmp<0x2F, FR16X, null_frag, bf16, f16mem, loadf16,
                                    "comisbf16", SSEPackedSingle>, T_MAP5, PD, EVEX,
                                    VEX_LIG, EVEX_CD8<16, CD8VT1>;
 
   let isCodeGenOnly = 1 in {
-    defm VCOMISBF16Z : sse12_ord_cmp_int<0x2F, VR128X, X86comi, v8bf16, f16mem,
-                                         sse_load_bf16, "comisbf16", SSEPackedSingle>,
+    defm VCOMISBF16Z : sse12_ord_cmp_int<0x2F, VR128X, X86any_comi_bf16, v8bf16,
+                                         f16mem, sse_load_bf16, "comisbf16",
+                                         SSEPackedSingle>,
                                          T_MAP5, PD, EVEX, VEX_LIG, EVEX_CD8<16, CD8VT1>;
   }
 }

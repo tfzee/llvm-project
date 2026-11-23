@@ -196,53 +196,41 @@ define <8 x bfloat> @return_arg_v8bf16(<8 x bfloat> %x) #0 {
 ;
 ; FAST_ISEL_SSE2-LABEL: return_arg_v8bf16:
 ; FAST_ISEL_SSE2:       # %bb.0:
-; FAST_ISEL_SSE2-NEXT:    pxor %xmm2, %xmm2
-; FAST_ISEL_SSE2-NEXT:    punpckhwd {{.*#+}} xmm2 = xmm2[4],xmm0[4],xmm2[5],xmm0[5],xmm2[6],xmm0[6],xmm2[7],xmm0[7]
+; FAST_ISEL_SSE2-NEXT:    pxor %xmm1, %xmm1
+; FAST_ISEL_SSE2-NEXT:    punpckhwd {{.*#+}} xmm1 = xmm1[4],xmm0[4],xmm1[5],xmm0[5],xmm1[6],xmm0[6],xmm1[7],xmm0[7]
 ; FAST_ISEL_SSE2-NEXT:    pextrw $7, %xmm0, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm1
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm2
 ; FAST_ISEL_SSE2-NEXT:    pextrw $6, %xmm0, %eax
 ; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm3
 ; FAST_ISEL_SSE2-NEXT:    pextrw $5, %xmm0, %eax
 ; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm4
 ; FAST_ISEL_SSE2-NEXT:    pextrw $3, %xmm0, %eax
-; FAST_ISEL_SSE2-NEXT:    pextrw $2, %xmm0, %ecx
-; FAST_ISEL_SSE2-NEXT:    pextrw $1, %xmm0, %edx
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm5
+; FAST_ISEL_SSE2-NEXT:    pextrw $2, %xmm0, %eax
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm6
+; FAST_ISEL_SSE2-NEXT:    pextrw $1, %xmm0, %eax
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm0
-; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm1
+; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm2
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm3
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm4
-; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm5
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm5
-; FAST_ISEL_SSE2-NEXT:    movd %ecx, %xmm6
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm6
-; FAST_ISEL_SSE2-NEXT:    movd %edx, %xmm7
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm7
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm7
-; FAST_ISEL_SSE2-NEXT:    movd %xmm0, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm7, %ecx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %ecx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %ecx
-; FAST_ISEL_SSE2-NEXT:    movd %xmm6, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm5, %edx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %edx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %edx
-; FAST_ISEL_SSE2-NEXT:    shlq $32, %rdx
-; FAST_ISEL_SSE2-NEXT:    orq %rcx, %rdx
-; FAST_ISEL_SSE2-NEXT:    movq %rdx, %xmm0
-; FAST_ISEL_SSE2-NEXT:    movd %xmm2, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm4, %ecx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %ecx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %ecx
-; FAST_ISEL_SSE2-NEXT:    movd %xmm3, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm1, %edx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %edx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %edx
-; FAST_ISEL_SSE2-NEXT:    shlq $32, %rdx
-; FAST_ISEL_SSE2-NEXT:    orq %rcx, %rdx
-; FAST_ISEL_SSE2-NEXT:    movq %rdx, %xmm1
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm0
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm7
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm0 = xmm0[0],xmm7[0],xmm0[1],xmm7[1],xmm0[2],xmm7[2],xmm0[3],xmm7[3]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm6
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm5
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm6 = xmm6[0],xmm5[0],xmm6[1],xmm5[1],xmm6[2],xmm5[2],xmm6[3],xmm5[3]
+; FAST_ISEL_SSE2-NEXT:    punpckldq {{.*#+}} xmm0 = xmm0[0],xmm6[0],xmm0[1],xmm6[1]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm1
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm4
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm1 = xmm1[0],xmm4[0],xmm1[1],xmm4[1],xmm1[2],xmm4[2],xmm1[3],xmm4[3]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm3
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm2
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm3 = xmm3[0],xmm2[0],xmm3[1],xmm2[1],xmm3[2],xmm2[2],xmm3[3],xmm2[3]
+; FAST_ISEL_SSE2-NEXT:    punpckldq {{.*#+}} xmm1 = xmm1[0],xmm3[0],xmm1[1],xmm3[1]
 ; FAST_ISEL_SSE2-NEXT:    punpcklqdq {{.*#+}} xmm0 = xmm0[0],xmm1[0]
 ; FAST_ISEL_SSE2-NEXT:    retq
 ;
@@ -283,13 +271,12 @@ define <16 x bfloat> @return_arg_v16bf16(<16 x bfloat> %x) #0 {
 ; FAST_ISEL_SSE2-NEXT:    pextrw $5, %xmm1, %eax
 ; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm5
 ; FAST_ISEL_SSE2-NEXT:    pextrw $3, %xmm1, %eax
-; FAST_ISEL_SSE2-NEXT:    pextrw $2, %xmm1, %ecx
-; FAST_ISEL_SSE2-NEXT:    pextrw $1, %xmm1, %edx
-; FAST_ISEL_SSE2-NEXT:    movdqa %xmm1, %xmm8
-; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm8
-; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm1
-; FAST_ISEL_SSE2-NEXT:    movd %ecx, %xmm7
-; FAST_ISEL_SSE2-NEXT:    movd %edx, %xmm9
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm7
+; FAST_ISEL_SSE2-NEXT:    pextrw $2, %xmm1, %eax
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm8
+; FAST_ISEL_SSE2-NEXT:    pextrw $1, %xmm1, %eax
+; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm1
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm9
 ; FAST_ISEL_SSE2-NEXT:    pextrw $7, %xmm0, %eax
 ; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm10
 ; FAST_ISEL_SSE2-NEXT:    pextrw $6, %xmm0, %eax
@@ -297,77 +284,53 @@ define <16 x bfloat> @return_arg_v16bf16(<16 x bfloat> %x) #0 {
 ; FAST_ISEL_SSE2-NEXT:    pextrw $5, %xmm0, %eax
 ; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm12
 ; FAST_ISEL_SSE2-NEXT:    pextrw $3, %xmm0, %eax
-; FAST_ISEL_SSE2-NEXT:    pextrw $2, %xmm0, %ecx
-; FAST_ISEL_SSE2-NEXT:    pextrw $1, %xmm0, %edx
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm13
+; FAST_ISEL_SSE2-NEXT:    pextrw $2, %xmm0, %eax
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm14
+; FAST_ISEL_SSE2-NEXT:    pextrw $1, %xmm0, %eax
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm0
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm3
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm4
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm5
-; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm1
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm7
+; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm8
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm9
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm10
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm11
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm12
-; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm13
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm13
-; FAST_ISEL_SSE2-NEXT:    movd %ecx, %xmm14
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm14
-; FAST_ISEL_SSE2-NEXT:    movd %edx, %xmm15
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm15
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm15
-; FAST_ISEL_SSE2-NEXT:    movd %xmm0, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm15, %ecx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %ecx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %ecx
-; FAST_ISEL_SSE2-NEXT:    movd %xmm14, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm13, %edx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %edx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %edx
-; FAST_ISEL_SSE2-NEXT:    shlq $32, %rdx
-; FAST_ISEL_SSE2-NEXT:    orq %rcx, %rdx
-; FAST_ISEL_SSE2-NEXT:    movq %rdx, %xmm0
-; FAST_ISEL_SSE2-NEXT:    movd %xmm6, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm12, %ecx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %ecx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %ecx
-; FAST_ISEL_SSE2-NEXT:    movd %xmm11, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm10, %edx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %edx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %edx
-; FAST_ISEL_SSE2-NEXT:    shlq $32, %rdx
-; FAST_ISEL_SSE2-NEXT:    orq %rcx, %rdx
-; FAST_ISEL_SSE2-NEXT:    movq %rdx, %xmm6
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm0
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm15
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm0 = xmm0[0],xmm15[0],xmm0[1],xmm15[1],xmm0[2],xmm15[2],xmm0[3],xmm15[3]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm14
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm13
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm14 = xmm14[0],xmm13[0],xmm14[1],xmm13[1],xmm14[2],xmm13[2],xmm14[3],xmm13[3]
+; FAST_ISEL_SSE2-NEXT:    punpckldq {{.*#+}} xmm0 = xmm0[0],xmm14[0],xmm0[1],xmm14[1]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm6
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm12
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm6 = xmm6[0],xmm12[0],xmm6[1],xmm12[1],xmm6[2],xmm12[2],xmm6[3],xmm12[3]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm11
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm10
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm11 = xmm11[0],xmm10[0],xmm11[1],xmm10[1],xmm11[2],xmm10[2],xmm11[3],xmm10[3]
+; FAST_ISEL_SSE2-NEXT:    punpckldq {{.*#+}} xmm6 = xmm6[0],xmm11[0],xmm6[1],xmm11[1]
 ; FAST_ISEL_SSE2-NEXT:    punpcklqdq {{.*#+}} xmm0 = xmm0[0],xmm6[0]
-; FAST_ISEL_SSE2-NEXT:    movd %xmm8, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm9, %ecx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %ecx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %ecx
-; FAST_ISEL_SSE2-NEXT:    movd %xmm7, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm1, %edx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %edx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %edx
-; FAST_ISEL_SSE2-NEXT:    shlq $32, %rdx
-; FAST_ISEL_SSE2-NEXT:    orq %rcx, %rdx
-; FAST_ISEL_SSE2-NEXT:    movq %rdx, %xmm1
-; FAST_ISEL_SSE2-NEXT:    movd %xmm2, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm5, %ecx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %ecx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %ecx
-; FAST_ISEL_SSE2-NEXT:    movd %xmm4, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm3, %edx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %edx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %edx
-; FAST_ISEL_SSE2-NEXT:    shlq $32, %rdx
-; FAST_ISEL_SSE2-NEXT:    orq %rcx, %rdx
-; FAST_ISEL_SSE2-NEXT:    movq %rdx, %xmm2
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm1
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm9
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm1 = xmm1[0],xmm9[0],xmm1[1],xmm9[1],xmm1[2],xmm9[2],xmm1[3],xmm9[3]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm8
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm7
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm8 = xmm8[0],xmm7[0],xmm8[1],xmm7[1],xmm8[2],xmm7[2],xmm8[3],xmm7[3]
+; FAST_ISEL_SSE2-NEXT:    punpckldq {{.*#+}} xmm1 = xmm1[0],xmm8[0],xmm1[1],xmm8[1]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm2
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm5
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm2 = xmm2[0],xmm5[0],xmm2[1],xmm5[1],xmm2[2],xmm5[2],xmm2[3],xmm5[3]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm4
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm3
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm4 = xmm4[0],xmm3[0],xmm4[1],xmm3[1],xmm4[2],xmm3[2],xmm4[3],xmm3[3]
+; FAST_ISEL_SSE2-NEXT:    punpckldq {{.*#+}} xmm2 = xmm2[0],xmm4[0],xmm2[1],xmm4[1]
 ; FAST_ISEL_SSE2-NEXT:    punpcklqdq {{.*#+}} xmm1 = xmm1[0],xmm2[0]
 ; FAST_ISEL_SSE2-NEXT:    retq
 ;
@@ -666,53 +629,41 @@ define <8 x bfloat> @call_ret_v8bf16(ptr %ptr) #0 {
 ; FAST_ISEL_SSE2:       # %bb.0:
 ; FAST_ISEL_SSE2-NEXT:    pushq %rax
 ; FAST_ISEL_SSE2-NEXT:    movdqa (%rdi), %xmm0
-; FAST_ISEL_SSE2-NEXT:    pxor %xmm2, %xmm2
-; FAST_ISEL_SSE2-NEXT:    punpckhwd {{.*#+}} xmm2 = xmm2[4],xmm0[4],xmm2[5],xmm0[5],xmm2[6],xmm0[6],xmm2[7],xmm0[7]
+; FAST_ISEL_SSE2-NEXT:    pxor %xmm1, %xmm1
+; FAST_ISEL_SSE2-NEXT:    punpckhwd {{.*#+}} xmm1 = xmm1[4],xmm0[4],xmm1[5],xmm0[5],xmm1[6],xmm0[6],xmm1[7],xmm0[7]
 ; FAST_ISEL_SSE2-NEXT:    pextrw $7, %xmm0, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm1
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm2
 ; FAST_ISEL_SSE2-NEXT:    pextrw $6, %xmm0, %eax
 ; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm3
 ; FAST_ISEL_SSE2-NEXT:    pextrw $5, %xmm0, %eax
 ; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm4
 ; FAST_ISEL_SSE2-NEXT:    pextrw $3, %xmm0, %eax
-; FAST_ISEL_SSE2-NEXT:    pextrw $2, %xmm0, %ecx
-; FAST_ISEL_SSE2-NEXT:    pextrw $1, %xmm0, %edx
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm5
+; FAST_ISEL_SSE2-NEXT:    pextrw $2, %xmm0, %eax
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm6
+; FAST_ISEL_SSE2-NEXT:    pextrw $1, %xmm0, %eax
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm0
-; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm1
+; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm2
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm3
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm4
-; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm5
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm5
-; FAST_ISEL_SSE2-NEXT:    movd %ecx, %xmm6
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm6
-; FAST_ISEL_SSE2-NEXT:    movd %edx, %xmm7
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm7
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm7
-; FAST_ISEL_SSE2-NEXT:    movd %xmm0, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm7, %ecx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %ecx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %ecx
-; FAST_ISEL_SSE2-NEXT:    movd %xmm6, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm5, %edx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %edx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %edx
-; FAST_ISEL_SSE2-NEXT:    shlq $32, %rdx
-; FAST_ISEL_SSE2-NEXT:    orq %rcx, %rdx
-; FAST_ISEL_SSE2-NEXT:    movq %rdx, %xmm0
-; FAST_ISEL_SSE2-NEXT:    movd %xmm2, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm4, %ecx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %ecx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %ecx
-; FAST_ISEL_SSE2-NEXT:    movd %xmm3, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm1, %edx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %edx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %edx
-; FAST_ISEL_SSE2-NEXT:    shlq $32, %rdx
-; FAST_ISEL_SSE2-NEXT:    orq %rcx, %rdx
-; FAST_ISEL_SSE2-NEXT:    movq %rdx, %xmm1
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm0
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm7
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm0 = xmm0[0],xmm7[0],xmm0[1],xmm7[1],xmm0[2],xmm7[2],xmm0[3],xmm7[3]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm6
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm5
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm6 = xmm6[0],xmm5[0],xmm6[1],xmm5[1],xmm6[2],xmm5[2],xmm6[3],xmm5[3]
+; FAST_ISEL_SSE2-NEXT:    punpckldq {{.*#+}} xmm0 = xmm0[0],xmm6[0],xmm0[1],xmm6[1]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm1
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm4
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm1 = xmm1[0],xmm4[0],xmm1[1],xmm4[1],xmm1[2],xmm4[2],xmm1[3],xmm4[3]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm3
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm2
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm3 = xmm3[0],xmm2[0],xmm3[1],xmm2[1],xmm3[2],xmm2[2],xmm3[3],xmm2[3]
+; FAST_ISEL_SSE2-NEXT:    punpckldq {{.*#+}} xmm1 = xmm1[0],xmm3[0],xmm1[1],xmm3[1]
 ; FAST_ISEL_SSE2-NEXT:    punpcklqdq {{.*#+}} xmm0 = xmm0[0],xmm1[0]
 ; FAST_ISEL_SSE2-NEXT:    callq returns_v8bf16@PLT
 ;
@@ -757,24 +708,24 @@ define <16 x bfloat> @call_ret_v16bf16(ptr %ptr) #0 {
 ; FAST_ISEL_SSE2:       # %bb.0:
 ; FAST_ISEL_SSE2-NEXT:    pushq %rax
 ; FAST_ISEL_SSE2-NEXT:    movdqa (%rdi), %xmm0
-; FAST_ISEL_SSE2-NEXT:    movdqa 16(%rdi), %xmm8
-; FAST_ISEL_SSE2-NEXT:    pxor %xmm1, %xmm1
+; FAST_ISEL_SSE2-NEXT:    movdqa 16(%rdi), %xmm1
+; FAST_ISEL_SSE2-NEXT:    pxor %xmm6, %xmm6
 ; FAST_ISEL_SSE2-NEXT:    pxor %xmm2, %xmm2
-; FAST_ISEL_SSE2-NEXT:    punpckhwd {{.*#+}} xmm2 = xmm2[4],xmm8[4],xmm2[5],xmm8[5],xmm2[6],xmm8[6],xmm2[7],xmm8[7]
-; FAST_ISEL_SSE2-NEXT:    punpckhwd {{.*#+}} xmm1 = xmm1[4],xmm0[4],xmm1[5],xmm0[5],xmm1[6],xmm0[6],xmm1[7],xmm0[7]
-; FAST_ISEL_SSE2-NEXT:    pextrw $7, %xmm8, %eax
+; FAST_ISEL_SSE2-NEXT:    punpckhwd {{.*#+}} xmm2 = xmm2[4],xmm1[4],xmm2[5],xmm1[5],xmm2[6],xmm1[6],xmm2[7],xmm1[7]
+; FAST_ISEL_SSE2-NEXT:    punpckhwd {{.*#+}} xmm6 = xmm6[4],xmm0[4],xmm6[5],xmm0[5],xmm6[6],xmm0[6],xmm6[7],xmm0[7]
+; FAST_ISEL_SSE2-NEXT:    pextrw $7, %xmm1, %eax
 ; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm3
-; FAST_ISEL_SSE2-NEXT:    pextrw $6, %xmm8, %eax
+; FAST_ISEL_SSE2-NEXT:    pextrw $6, %xmm1, %eax
 ; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm4
-; FAST_ISEL_SSE2-NEXT:    pextrw $5, %xmm8, %eax
+; FAST_ISEL_SSE2-NEXT:    pextrw $5, %xmm1, %eax
 ; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm5
-; FAST_ISEL_SSE2-NEXT:    pextrw $3, %xmm8, %eax
-; FAST_ISEL_SSE2-NEXT:    pextrw $2, %xmm8, %ecx
-; FAST_ISEL_SSE2-NEXT:    pextrw $1, %xmm8, %edx
-; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm8
-; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm6
-; FAST_ISEL_SSE2-NEXT:    movd %ecx, %xmm7
-; FAST_ISEL_SSE2-NEXT:    movd %edx, %xmm9
+; FAST_ISEL_SSE2-NEXT:    pextrw $3, %xmm1, %eax
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm7
+; FAST_ISEL_SSE2-NEXT:    pextrw $2, %xmm1, %eax
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm8
+; FAST_ISEL_SSE2-NEXT:    pextrw $1, %xmm1, %eax
+; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm1
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm9
 ; FAST_ISEL_SSE2-NEXT:    pextrw $7, %xmm0, %eax
 ; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm10
 ; FAST_ISEL_SSE2-NEXT:    pextrw $6, %xmm0, %eax
@@ -782,77 +733,53 @@ define <16 x bfloat> @call_ret_v16bf16(ptr %ptr) #0 {
 ; FAST_ISEL_SSE2-NEXT:    pextrw $5, %xmm0, %eax
 ; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm12
 ; FAST_ISEL_SSE2-NEXT:    pextrw $3, %xmm0, %eax
-; FAST_ISEL_SSE2-NEXT:    pextrw $2, %xmm0, %ecx
-; FAST_ISEL_SSE2-NEXT:    pextrw $1, %xmm0, %edx
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm13
+; FAST_ISEL_SSE2-NEXT:    pextrw $2, %xmm0, %eax
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm14
+; FAST_ISEL_SSE2-NEXT:    pextrw $1, %xmm0, %eax
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm0
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm3
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm4
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm5
-; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm6
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm7
+; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm8
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm9
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm10
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm11
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm12
-; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm13
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm13
-; FAST_ISEL_SSE2-NEXT:    movd %ecx, %xmm14
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm14
-; FAST_ISEL_SSE2-NEXT:    movd %edx, %xmm15
+; FAST_ISEL_SSE2-NEXT:    movd %eax, %xmm15
 ; FAST_ISEL_SSE2-NEXT:    pslld $16, %xmm15
-; FAST_ISEL_SSE2-NEXT:    movd %xmm0, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm15, %ecx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %ecx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %ecx
-; FAST_ISEL_SSE2-NEXT:    movd %xmm14, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm13, %edx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %edx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %edx
-; FAST_ISEL_SSE2-NEXT:    shlq $32, %rdx
-; FAST_ISEL_SSE2-NEXT:    orq %rcx, %rdx
-; FAST_ISEL_SSE2-NEXT:    movq %rdx, %xmm0
-; FAST_ISEL_SSE2-NEXT:    movd %xmm1, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm12, %ecx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %ecx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %ecx
-; FAST_ISEL_SSE2-NEXT:    movd %xmm11, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm10, %edx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %edx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %edx
-; FAST_ISEL_SSE2-NEXT:    shlq $32, %rdx
-; FAST_ISEL_SSE2-NEXT:    orq %rcx, %rdx
-; FAST_ISEL_SSE2-NEXT:    movq %rdx, %xmm1
-; FAST_ISEL_SSE2-NEXT:    punpcklqdq {{.*#+}} xmm0 = xmm0[0],xmm1[0]
-; FAST_ISEL_SSE2-NEXT:    movd %xmm8, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm9, %ecx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %ecx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %ecx
-; FAST_ISEL_SSE2-NEXT:    movd %xmm7, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm6, %edx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %edx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %edx
-; FAST_ISEL_SSE2-NEXT:    shlq $32, %rdx
-; FAST_ISEL_SSE2-NEXT:    orq %rcx, %rdx
-; FAST_ISEL_SSE2-NEXT:    movq %rdx, %xmm1
-; FAST_ISEL_SSE2-NEXT:    movd %xmm2, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm5, %ecx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %ecx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %ecx
-; FAST_ISEL_SSE2-NEXT:    movd %xmm4, %eax
-; FAST_ISEL_SSE2-NEXT:    shrl $16, %eax
-; FAST_ISEL_SSE2-NEXT:    movd %xmm3, %edx
-; FAST_ISEL_SSE2-NEXT:    andl $-65536, %edx # imm = 0xFFFF0000
-; FAST_ISEL_SSE2-NEXT:    orl %eax, %edx
-; FAST_ISEL_SSE2-NEXT:    shlq $32, %rdx
-; FAST_ISEL_SSE2-NEXT:    orq %rcx, %rdx
-; FAST_ISEL_SSE2-NEXT:    movq %rdx, %xmm2
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm0
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm15
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm0 = xmm0[0],xmm15[0],xmm0[1],xmm15[1],xmm0[2],xmm15[2],xmm0[3],xmm15[3]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm14
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm13
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm14 = xmm14[0],xmm13[0],xmm14[1],xmm13[1],xmm14[2],xmm13[2],xmm14[3],xmm13[3]
+; FAST_ISEL_SSE2-NEXT:    punpckldq {{.*#+}} xmm0 = xmm0[0],xmm14[0],xmm0[1],xmm14[1]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm6
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm12
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm6 = xmm6[0],xmm12[0],xmm6[1],xmm12[1],xmm6[2],xmm12[2],xmm6[3],xmm12[3]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm11
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm10
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm11 = xmm11[0],xmm10[0],xmm11[1],xmm10[1],xmm11[2],xmm10[2],xmm11[3],xmm10[3]
+; FAST_ISEL_SSE2-NEXT:    punpckldq {{.*#+}} xmm6 = xmm6[0],xmm11[0],xmm6[1],xmm11[1]
+; FAST_ISEL_SSE2-NEXT:    punpcklqdq {{.*#+}} xmm0 = xmm0[0],xmm6[0]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm1
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm9
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm1 = xmm1[0],xmm9[0],xmm1[1],xmm9[1],xmm1[2],xmm9[2],xmm1[3],xmm9[3]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm8
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm7
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm8 = xmm8[0],xmm7[0],xmm8[1],xmm7[1],xmm8[2],xmm7[2],xmm8[3],xmm7[3]
+; FAST_ISEL_SSE2-NEXT:    punpckldq {{.*#+}} xmm1 = xmm1[0],xmm8[0],xmm1[1],xmm8[1]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm2
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm5
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm2 = xmm2[0],xmm5[0],xmm2[1],xmm5[1],xmm2[2],xmm5[2],xmm2[3],xmm5[3]
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm4
+; FAST_ISEL_SSE2-NEXT:    psrld $16, %xmm3
+; FAST_ISEL_SSE2-NEXT:    punpcklwd {{.*#+}} xmm4 = xmm4[0],xmm3[0],xmm4[1],xmm3[1],xmm4[2],xmm3[2],xmm4[3],xmm3[3]
+; FAST_ISEL_SSE2-NEXT:    punpckldq {{.*#+}} xmm2 = xmm2[0],xmm4[0],xmm2[1],xmm4[1]
 ; FAST_ISEL_SSE2-NEXT:    punpcklqdq {{.*#+}} xmm1 = xmm1[0],xmm2[0]
 ; FAST_ISEL_SSE2-NEXT:    callq returns_v16bf16@PLT
 ;

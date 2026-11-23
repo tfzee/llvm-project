@@ -15,16 +15,9 @@ define void @splat_v8bf16_cross_block(<8 x bfloat> %v, i1 %c, ptr %p) nounwind {
 ; SSE-NEXT:    je .LBB0_2
 ; SSE-NEXT:  # %bb.1: # %splat
 ; SSE-NEXT:    pslld $16, %xmm0
-; SSE-NEXT:    movd %xmm0, %eax
-; SSE-NEXT:    shrl $16, %eax
-; SSE-NEXT:    movw %ax, 14(%rsi)
-; SSE-NEXT:    movw %ax, 12(%rsi)
-; SSE-NEXT:    movw %ax, 10(%rsi)
-; SSE-NEXT:    movw %ax, 8(%rsi)
-; SSE-NEXT:    movw %ax, 6(%rsi)
-; SSE-NEXT:    movw %ax, 4(%rsi)
-; SSE-NEXT:    movw %ax, 2(%rsi)
-; SSE-NEXT:    movw %ax, (%rsi)
+; SSE-NEXT:    pshuflw {{.*#+}} xmm0 = xmm0[1,1,1,1,4,5,6,7]
+; SSE-NEXT:    pshufd {{.*#+}} xmm0 = xmm0[0,1,0,1]
+; SSE-NEXT:    movdqa %xmm0, (%rsi)
 ; SSE-NEXT:  .LBB0_2: # %exit
 ; SSE-NEXT:    retq
 ;
@@ -54,24 +47,10 @@ define void @splat_v16bf16_from_v8bf16_cross_block(<8 x bfloat> %v, i1 %c, ptr %
 ; SSE-NEXT:    je .LBB1_2
 ; SSE-NEXT:  # %bb.1: # %splat
 ; SSE-NEXT:    pslld $16, %xmm0
-; SSE-NEXT:    movd %xmm0, %eax
-; SSE-NEXT:    shrl $16, %eax
-; SSE-NEXT:    movw %ax, 30(%rsi)
-; SSE-NEXT:    movw %ax, 28(%rsi)
-; SSE-NEXT:    movw %ax, 26(%rsi)
-; SSE-NEXT:    movw %ax, 24(%rsi)
-; SSE-NEXT:    movw %ax, 22(%rsi)
-; SSE-NEXT:    movw %ax, 20(%rsi)
-; SSE-NEXT:    movw %ax, 18(%rsi)
-; SSE-NEXT:    movw %ax, 16(%rsi)
-; SSE-NEXT:    movw %ax, 14(%rsi)
-; SSE-NEXT:    movw %ax, 12(%rsi)
-; SSE-NEXT:    movw %ax, 10(%rsi)
-; SSE-NEXT:    movw %ax, 8(%rsi)
-; SSE-NEXT:    movw %ax, 6(%rsi)
-; SSE-NEXT:    movw %ax, 4(%rsi)
-; SSE-NEXT:    movw %ax, 2(%rsi)
-; SSE-NEXT:    movw %ax, (%rsi)
+; SSE-NEXT:    pshuflw {{.*#+}} xmm0 = xmm0[1,1,1,1,4,5,6,7]
+; SSE-NEXT:    pshufd {{.*#+}} xmm0 = xmm0[0,1,0,1]
+; SSE-NEXT:    movdqa %xmm0, 16(%rsi)
+; SSE-NEXT:    movdqa %xmm0, (%rsi)
 ; SSE-NEXT:  .LBB1_2: # %exit
 ; SSE-NEXT:    retq
 ;
@@ -102,24 +81,10 @@ define void @splat_v16bf16_cross_block(<16 x bfloat> %v, i1 %c, ptr %p) nounwind
 ; SSE-NEXT:    je .LBB2_2
 ; SSE-NEXT:  # %bb.1: # %splat
 ; SSE-NEXT:    pslld $16, %xmm0
-; SSE-NEXT:    movd %xmm0, %eax
-; SSE-NEXT:    shrl $16, %eax
-; SSE-NEXT:    movw %ax, 30(%rsi)
-; SSE-NEXT:    movw %ax, 28(%rsi)
-; SSE-NEXT:    movw %ax, 26(%rsi)
-; SSE-NEXT:    movw %ax, 24(%rsi)
-; SSE-NEXT:    movw %ax, 22(%rsi)
-; SSE-NEXT:    movw %ax, 20(%rsi)
-; SSE-NEXT:    movw %ax, 18(%rsi)
-; SSE-NEXT:    movw %ax, 16(%rsi)
-; SSE-NEXT:    movw %ax, 14(%rsi)
-; SSE-NEXT:    movw %ax, 12(%rsi)
-; SSE-NEXT:    movw %ax, 10(%rsi)
-; SSE-NEXT:    movw %ax, 8(%rsi)
-; SSE-NEXT:    movw %ax, 6(%rsi)
-; SSE-NEXT:    movw %ax, 4(%rsi)
-; SSE-NEXT:    movw %ax, 2(%rsi)
-; SSE-NEXT:    movw %ax, (%rsi)
+; SSE-NEXT:    pshuflw {{.*#+}} xmm0 = xmm0[1,1,1,1,4,5,6,7]
+; SSE-NEXT:    pshufd {{.*#+}} xmm0 = xmm0[0,1,0,1]
+; SSE-NEXT:    movdqa %xmm0, 16(%rsi)
+; SSE-NEXT:    movdqa %xmm0, (%rsi)
 ; SSE-NEXT:  .LBB2_2: # %exit
 ; SSE-NEXT:    retq
 ;

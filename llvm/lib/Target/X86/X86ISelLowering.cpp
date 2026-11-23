@@ -2829,6 +2829,7 @@ X86TargetLowering::X86TargetLowering(const X86TargetMachine &TM,
 
   // We have target-specific dag combine patterns for the following nodes:
   setTargetDAGCombine({ISD::VECTOR_SHUFFLE,
+                       ISD::BUILD_VECTOR,
                        ISD::SCALAR_TO_VECTOR,
                        ISD::INSERT_VECTOR_ELT,
                        ISD::EXTRACT_VECTOR_ELT,
@@ -47418,6 +47419,36 @@ static SDValue combineMaskBeforeFirst(SDNode *N, SelectionDAG &DAG,
   return DAG.getBitcast(VT, DAG.getAnyExtOrTrunc(Res, DL, IntVT));
 }
 
+// Without native bf16 vector types (pre-AVX), a bf16 BUILD_VECTOR would be
+// type legalized by splitting/scalarizing and packing the elements through
+// GPRs. Build the vector as i16 instead, which is legal on SSE2 and lowers to
+// shuffles/broadcasts. This must run before type legalization so that users
+// (stores, shuffles) can still fold with the i16 vector.
+// Narrower vectors (v2bf16/v4bf16) are widened by the type legalizer rather
+// than split, so this doesn't help them.
+static SDValue combineBUILD_VECTOR(SDNode *N, SelectionDAG &DAG,
+                                   TargetLowering::DAGCombinerInfo &DCI,
+                                   const X86Subtarget &Subtarget) {
+  EVT VT = N->getValueType(0);
+  if (!DCI.isBeforeLegalize() || !Subtarget.hasSSE2() ||
+      VT.getVectorElementType() != MVT::bf16 || VT.getVectorNumElements() < 8 ||
+      DAG.getTargetLoweringInfo().isTypeLegal(VT))
+    return SDValue();
+
+  // Constant vectors are lowered via the constant pool, and bitcasting the
+  // i16 constant vector back would just fold to this same node (infinite loop).
+  if (ISD::isBuildVectorOfConstantFPSDNodes(SDValue(N, 0)))
+    return SDValue();
+
+  SDLoc DL(N);
+  SmallVector<SDValue, 16> Ops;
+  for (SDValue Op : N->ops())
+    Ops.push_back(Op.isUndef() ? DAG.getUNDEF(MVT::i16)
+                               : DAG.getBitcast(MVT::i16, Op));
+  EVT IVT = VT.changeVectorElementType(*DAG.getContext(), MVT::i16);
+  return DAG.getBitcast(VT, DAG.getBuildVector(IVT, DL, Ops));
+}
+
 static SDValue combineBitcast(SDNode *N, SelectionDAG &DAG,
                               TargetLowering::DAGCombinerInfo &DCI,
                               const X86Subtarget &Subtarget) {
@@ -64663,6 +64694,7 @@ SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
   case X86ISD::COMPRESS:
   case X86ISD::EXPAND:
   case ISD::VECTOR_SHUFFLE: return combineShuffle(N, DAG, DCI,Subtarget);
+  case ISD::BUILD_VECTOR:   return combineBUILD_VECTOR(N, DAG, DCI, Subtarget);
   case X86ISD::FMADD_RND:
   case X86ISD::FMSUB:
   case X86ISD::STRICT_FMSUB:
